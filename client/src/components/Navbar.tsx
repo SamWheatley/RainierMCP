@@ -33,7 +33,7 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center space-x-8">
+          <div className="flex items-center space-x-2">
             <Button
               variant={activeTab === 'ask' ? 'default' : 'ghost'}
               className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${
