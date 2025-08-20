@@ -1,7 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Edit2, Trash2, Save, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
 import type { ChatThread } from "@shared/schema";
 
 interface ThreadHistoryProps {
@@ -11,11 +14,61 @@ interface ThreadHistoryProps {
 }
 
 export default function ThreadHistory({ currentThreadId, onThreadSelect, onNewThread }: ThreadHistoryProps) {
-  const { data: threadsData, isLoading } = useQuery({
+  const queryClient = useQueryClient();
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState<string>("");
+
+  const { data: threadsData, isLoading } = useQuery<{ threads: ChatThread[] }>({
     queryKey: ['/api/threads'],
   });
 
   const threads: ChatThread[] = threadsData?.threads || [];
+
+  const renameMutation = useMutation({
+    mutationFn: async ({ threadId, title }: { threadId: string; title: string }) => {
+      return await apiRequest('PATCH', `/api/threads/${threadId}`, { title });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/threads'] });
+      setEditingThreadId(null);
+      setEditingTitle("");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (threadId: string) => {
+      return await apiRequest('DELETE', `/api/threads/${threadId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/threads'] });
+      // If we deleted the current thread, reset to null
+      if (currentThreadId && currentThreadId === deleteMutation.variables) {
+        onThreadSelect('');
+      }
+    },
+  });
+
+  const handleStartEdit = (thread: ChatThread) => {
+    setEditingThreadId(thread.id);
+    setEditingTitle(thread.title);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingThreadId && editingTitle.trim()) {
+      renameMutation.mutate({ threadId: editingThreadId, title: editingTitle.trim() });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingThreadId(null);
+    setEditingTitle("");
+  };
+
+  const handleDelete = (threadId: string) => {
+    if (confirm('Are you sure you want to delete this conversation?')) {
+      deleteMutation.mutate(threadId);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -63,19 +116,82 @@ export default function ThreadHistory({ currentThreadId, onThreadSelect, onNewTh
             {threads.map((thread) => (
               <div
                 key={thread.id}
-                onClick={() => onThreadSelect(thread.id)}
-                className={`p-3 rounded-lg cursor-pointer transition-colors duration-200 border ${
+                className={`p-3 rounded-lg transition-colors duration-200 border group ${
                   currentThreadId === thread.id
                     ? 'bg-primary/10 border-primary'
                     : 'hover:bg-gray-50 border-transparent hover:border-gray-200'
                 }`}
               >
-                <h4 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
-                  {thread.title}
-                </h4>
-                <p className="text-xs text-gray-600 mb-2">
-                  {formatDate(thread.updatedAt || thread.createdAt!)}
-                </p>
+                {editingThreadId === thread.id ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      className="text-sm"
+                      placeholder="Thread title"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveEdit();
+                        if (e.key === 'Escape') handleCancelEdit();
+                      }}
+                    />
+                    <div className="flex items-center space-x-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleSaveEdit}
+                        disabled={renameMutation.isPending}
+                      >
+                        <Save className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleCancelEdit}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div 
+                      onClick={() => onThreadSelect(thread.id)}
+                      className="cursor-pointer"
+                    >
+                      <h4 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
+                        {thread.title}
+                      </h4>
+                      <p className="text-xs text-gray-600 mb-2">
+                        {formatDate((thread.updatedAt || thread.createdAt || new Date().toISOString()).toString())}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEdit(thread);
+                        }}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(thread.id);
+                        }}
+                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>

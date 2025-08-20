@@ -1,11 +1,11 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, MessageSquare, FolderOpen } from "lucide-react";
+import { Bell, MessageSquare, FolderOpen, History } from "lucide-react";
 
 interface NavbarProps {
-  activeTab: 'ask' | 'explore';
-  onTabChange: (tab: 'ask' | 'explore') => void;
+  activeTab: 'ask' | 'explore' | 'history';
+  onTabChange: (tab: 'ask' | 'explore' | 'history') => void;
 }
 
 export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
@@ -58,6 +58,18 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
               <FolderOpen className="w-4 h-4 mr-2" />
               Explore
             </Button>
+            <Button
+              variant={activeTab === 'history' ? 'default' : 'ghost'}
+              className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+                activeTab === 'history' 
+                  ? 'text-primary border-b-2 border-primary bg-transparent hover:bg-transparent' 
+                  : 'text-gray-600 hover:text-primary'
+              }`}
+              onClick={() => onTabChange('history')}
+            >
+              <History className="w-4 h-4 mr-2" />
+              History
+            </Button>
           </div>
 
           {/* User Profile */}
@@ -67,7 +79,7 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
             </Button>
             <div className="flex items-center space-x-3">
               <Avatar className="w-8 h-8">
-                <AvatarImage src={user?.profileImageUrl || ""} />
+                <AvatarImage src={user?.profileImageUrl ?? ""} />
                 <AvatarFallback className="bg-primary text-white text-sm">
                   {getInitials(user?.firstName, user?.lastName)}
                 </AvatarFallback>

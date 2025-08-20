@@ -14,7 +14,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = (req.user as any)?.claims?.sub;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -25,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Object storage routes for file serving
   app.get("/objects/:objectPath(*)", isAuthenticated, async (req, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.user as any)?.claims?.sub;
     const objectStorageService = new ObjectStorageService();
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/files/process", isAuthenticated, async (req, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.user as any)?.claims?.sub;
     const schema = z.object({
       uploadURL: z.string(),
       originalName: z.string(),
@@ -97,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Chat thread routes
   app.get("/api/threads", isAuthenticated, async (req, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.user as any)?.claims?.sub;
     try {
       const threads = await storage.getUserChatThreads(userId);
       res.json({ threads });
@@ -108,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/threads", isAuthenticated, async (req, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.user as any)?.claims?.sub;
     const schema = z.object({
       title: z.string().optional(),
     });
@@ -126,8 +126,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/threads/:threadId", isAuthenticated, async (req, res) => {
+    const userId = (req.user as any)?.claims?.sub;
+    const { threadId } = req.params;
+    const schema = z.object({
+      title: z.string().min(1, "Title cannot be empty"),
+    });
+
+    try {
+      const { title } = schema.parse(req.body);
+      
+      // Verify thread ownership
+      const thread = await storage.getChatThread(threadId, userId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      await storage.updateChatThread(threadId, title);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating thread:", error);
+      res.status(500).json({ error: "Failed to update thread" });
+    }
+  });
+
+  app.delete("/api/threads/:threadId", isAuthenticated, async (req, res) => {
+    const userId = (req.user as any)?.claims?.sub;
+    const { threadId } = req.params;
+
+    try {
+      // Verify thread ownership
+      const thread = await storage.getChatThread(threadId, userId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      await storage.deleteChatThread(threadId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting thread:", error);
+      res.status(500).json({ error: "Failed to delete thread" });
+    }
+  });
+
   app.get("/api/threads/:threadId/messages", isAuthenticated, async (req, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
 
     try {
@@ -146,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/threads/:threadId/messages", isAuthenticated, async (req, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
     const schema = z.object({
       content: z.string(),
@@ -211,7 +254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // File management routes
   app.get("/api/files", isAuthenticated, async (req, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.user as any)?.claims?.sub;
     try {
       const files = await storage.getUserFiles(userId);
       res.json({ files });
@@ -222,7 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.delete("/api/files/:fileId", isAuthenticated, async (req, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.user as any)?.claims?.sub;
     const { fileId } = req.params;
 
     try {

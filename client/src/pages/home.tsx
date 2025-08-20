@@ -7,7 +7,7 @@ import ExploreGrid from "@/components/ExploreGrid";
 import type { UploadedFile } from "@shared/schema";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'ask' | 'explore'>('ask');
+  const [activeTab, setActiveTab] = useState<'ask' | 'explore' | 'history'>('ask');
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [, setLocation] = useLocation();
 
@@ -33,11 +33,14 @@ export default function Home() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'ask' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 h-[calc(100vh-8rem)]">
             <Chat 
               threadId={currentThreadId}
               onThreadCreated={setCurrentThreadId}
             />
+          </div>
+        ) : activeTab === 'history' ? (
+          <div className="max-w-4xl mx-auto">
             <ThreadHistory 
               currentThreadId={currentThreadId}
               onThreadSelect={handleThreadSelect}
