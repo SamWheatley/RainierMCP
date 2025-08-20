@@ -219,6 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const schema = z.object({
       content: z.string(),
       aiProvider: z.enum(['openai', 'anthropic']).optional().default('openai'),
+      internetAccess: z.boolean().optional().default(false),
       attachments: z.array(z.object({
         uploadURL: z.string(),
         originalName: z.string(),
@@ -228,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     try {
-      const { content, aiProvider, attachments } = schema.parse(req.body);
+      const { content, aiProvider, internetAccess, attachments } = schema.parse(req.body);
 
       // Verify thread ownership
       const thread = await storage.getChatThread(threadId, userId);
@@ -314,10 +315,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get AI response with automatic fallback
       const { askWithFallback } = await import('./ai-providers');
+      
+      // If internet access is enabled, add context about it
+      const contextString = internetAccess 
+        ? "You have internet access and can search for current information when needed to supplement your analysis of the provided documents. Use internet search strategically to provide more complete and up-to-date insights."
+        : "You are operating in sandboxed mode with access only to the uploaded research files. Focus your analysis exclusively on the content provided in the documents.";
+      
       const { response: aiResponse, usedProvider, usedFallback } = await askWithFallback(
         aiProvider as AIProviderType, 
         content, 
-        "", 
+        contextString, 
         sources
       );
       

@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { NotebookPen, Paperclip, Brain, FileText, X } from "lucide-react";
+import { NotebookPen, Paperclip, Brain, FileText, X, Globe, Shield } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import ChatAttachmentUploader from "./ChatAttachmentUploader";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   const [message, setMessage] = useState("");
   const [showSources, setShowSources] = useState(true);
   const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic'>('openai');
+  const [internetAccess, setInternetAccess] = useState(false);
   const [showAttachmentDialog, setShowAttachmentDialog] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -55,6 +56,7 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
       const response = await apiRequest('POST', `/api/threads/${targetThreadId}/messages`, { 
         content, 
         aiProvider,
+        internetAccess,
         attachments 
       });
       return response.json();
@@ -153,6 +155,32 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
                 <SelectItem value="anthropic">Anthropic</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Internet Access Toggle */}
+          <div className="flex items-center space-x-2">
+            <Button
+              variant={internetAccess ? "default" : "outline"}
+              size="sm"
+              onClick={() => setInternetAccess(!internetAccess)}
+              className={`text-xs h-7 px-3 transition-all ${
+                internetAccess 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300'
+              }`}
+            >
+              {internetAccess ? (
+                <>
+                  <Globe className="w-3 h-3 mr-1.5" />
+                  Internet
+                </>
+              ) : (
+                <>
+                  <Shield className="w-3 h-3 mr-1.5" />
+                  Sandboxed
+                </>
+              )}
+            </Button>
           </div>
           
           <label className="flex items-center space-x-1.5 cursor-pointer">
