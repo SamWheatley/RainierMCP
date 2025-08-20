@@ -42,18 +42,19 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
-      if (!threadId) {
+    mutationFn: async ({ content, targetThreadId }: { content: string; targetThreadId: string }) => {
+      if (!targetThreadId) {
         throw new Error("No thread ID");
       }
-      const response = await apiRequest('POST', `/api/threads/${threadId}/messages`, { 
+      const response = await apiRequest('POST', `/api/threads/${targetThreadId}/messages`, { 
         content, 
         aiProvider 
       });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/threads', threadId, 'messages'] });
+    onSuccess: (_, variables) => {
+      const targetThreadId = variables.targetThreadId;
+      queryClient.invalidateQueries({ queryKey: ['/api/threads', targetThreadId, 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['/api/threads'] });
       setMessage("");
     },
@@ -68,9 +69,9 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
         const result = await createThreadMutation.mutateAsync();
         const newThreadId = result.thread.id;
         // Send message to new thread
-        await sendMessageMutation.mutateAsync(message);
+        await sendMessageMutation.mutateAsync({ content: message, targetThreadId: newThreadId });
       } else {
-        await sendMessageMutation.mutateAsync(message);
+        await sendMessageMutation.mutateAsync({ content: message, targetThreadId: threadId });
       }
     } catch (error) {
       console.error("Failed to send message:", error);
