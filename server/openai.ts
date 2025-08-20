@@ -59,15 +59,67 @@ Always respond in JSON format with this structure:
   "followUpSuggestions": ["suggestion 1", "suggestion 2"]
 }`;
 
+// Helper function to estimate token count (rough approximation)
+function estimateTokenCount(text: string): number {
+  // Rough approximation: 1 token ≈ 4 characters for English text
+  return Math.ceil(text.length / 4);
+}
+
+// Helper function to truncate sources to fit token limits
+function truncateSources(
+  sources: Array<{ filename: string; content: string }>,
+  maxTokens: number = 15000 // Leave room for system prompt + user question + response
+): Array<{ filename: string; content: string }> {
+  const truncatedSources: Array<{ filename: string; content: string }> = [];
+  let currentTokens = 0;
+  
+  for (const source of sources) {
+    const sourceHeader = `=== ${source.filename} ===\n`;
+    const headerTokens = estimateTokenCount(sourceHeader);
+    
+    // If adding this source would exceed limits, truncate its content
+    const availableTokens = maxTokens - currentTokens - headerTokens;
+    
+    if (availableTokens <= 100) {
+      // Not enough space for meaningful content
+      break;
+    }
+    
+    const maxContentChars = availableTokens * 4; // Convert back to characters
+    const truncatedContent = source.content.length > maxContentChars
+      ? source.content.slice(0, maxContentChars) + "\n\n[Content truncated due to length...]"
+      : source.content;
+    
+    const contentTokens = estimateTokenCount(truncatedContent);
+    
+    truncatedSources.push({
+      filename: source.filename,
+      content: truncatedContent
+    });
+    
+    currentTokens += headerTokens + contentTokens;
+    
+    // If we're close to the limit, stop adding sources
+    if (currentTokens > maxTokens * 0.9) {
+      break;
+    }
+  }
+  
+  return truncatedSources;
+}
+
 export async function askRanier(
   question: string,
   context: string,
   sources: Array<{ filename: string; content: string }>
 ): Promise<ChatResponse> {
   try {
+    // Truncate sources to fit within token limits
+    const truncatedSources = truncateSources(sources);
+    
     // Prepare context with source documents
-    const contextWithSources = sources.length > 0 
-      ? `Available research documents:\n\n${sources.map(s => 
+    const contextWithSources = truncatedSources.length > 0 
+      ? `Available research documents:\n\n${truncatedSources.map(s => 
           `=== ${s.filename} ===\n${s.content}\n`
         ).join('\n')}\n\nUser context: ${context}`
       : `User context: ${context}`;
@@ -86,6 +138,7 @@ export async function askRanier(
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
+      max_tokens: 2000, // Limit response length to stay within total limits
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");

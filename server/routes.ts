@@ -253,14 +253,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const rawContent = Buffer.concat(chunks).toString('utf-8');
             
-            // Extract text using AI with error handling
+            // For very large files, just use first part without AI extraction to avoid token limits
             let extractedText = "";
-            try {
-              const { extractTextFromDocument } = await import('./openai');
-              extractedText = await extractTextFromDocument(rawContent, attachment.originalName);
-            } catch (extractionError) {
-              console.error("Error extracting text from attachment:", extractionError);
-              extractedText = rawContent.slice(0, 50000); // Limit to first 50k chars
+            if (rawContent.length > 100000) {
+              // File is very large, just take first part and clean it
+              extractedText = rawContent.slice(0, 50000);
+              console.log(`Large file ${attachment.originalName}: using first 50k chars without AI extraction`);
+            } else {
+              // Extract text using AI with error handling for smaller files
+              try {
+                const { extractTextFromDocument } = await import('./openai');
+                extractedText = await extractTextFromDocument(rawContent, attachment.originalName);
+              } catch (extractionError) {
+                console.error("Error extracting text from attachment:", extractionError);
+                extractedText = rawContent.slice(0, 25000); // Even smaller fallback
+              }
             }
             
             // Sanitize text

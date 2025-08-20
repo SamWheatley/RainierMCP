@@ -9,6 +9,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { NotebookPen, Paperclip, Brain, FileText, X } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import ChatAttachmentUploader from "./ChatAttachmentUploader";
+import { useToast } from "@/hooks/use-toast";
 import type { ChatMessage as ChatMessageType, ChatAttachment } from "@shared/schema";
 
 interface ChatProps {
@@ -25,6 +26,7 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: messagesData, isLoading } = useQuery({
     queryKey: ['/api/threads', threadId, 'messages'],
@@ -89,6 +91,19 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
       }
     } catch (error) {
       console.error("Failed to send message:", error);
+      
+      let errorMessage = "There was an error sending your message. Please try again.";
+      
+      // Check if it's a token limit error
+      if (error instanceof Error && error.message && error.message.includes('token')) {
+        errorMessage = "Your document is too large. Try asking about specific sections or uploading a smaller file.";
+      }
+      
+      toast({
+        title: "Failed to send message",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
