@@ -9,13 +9,20 @@ import Home from "@/pages/home";
 import Landing from "@/pages/landing";
 
 function Router() {
-  // TEMPORARY: Auth disabled for prototype sharing
-  // const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   return (
     <Switch>
-      {/* Always show main app for demo */}
-      <Route path="/" component={Home} />
+      {isLoading ? (
+        <Route path="/" component={() => <div className="flex items-center justify-center min-h-screen">Loading...</div>} />
+      ) : isAuthenticated ? (
+        <>
+          <Route path="/" component={Home} />
+        </>
+      ) : (
+        <Route path="/" component={Landing} />
+      )}
+      <Route path="/guest" component={Home} />
       <Route component={NotFound} />
     </Switch>
   );

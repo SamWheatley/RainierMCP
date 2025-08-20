@@ -41,13 +41,23 @@ export default function Landing() {
             Transform your qualitative research into actionable insights with AI-powered analysis. 
             Upload transcripts, ask questions, and discover patterns that matter.
           </p>
-          <Button 
-            size="lg"
-            onClick={() => window.location.href = '/api/login'}
-            className="bg-primary hover:bg-primary/90 text-lg px-8 py-3"
-          >
-            Get Started
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button 
+              size="lg"
+              onClick={() => window.location.href = '/api/login'}
+              className="bg-primary hover:bg-primary/90 text-lg px-8 py-3"
+            >
+              Sign In with Replit
+            </Button>
+            <Button 
+              size="lg"
+              variant="outline"
+              onClick={() => window.location.href = '/guest'}
+              className="border-primary text-primary hover:bg-primary/5 text-lg px-8 py-3"
+            >
+              Continue as Guest
+            </Button>
+          </div>
         </div>
 
         {/* Features Grid */}

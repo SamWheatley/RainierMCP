@@ -8,26 +8,39 @@ import { getAIProvider, type AIProviderType } from "./ai-providers";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // TEMPORARY: Auth disabled for prototype sharing
   // Auth middleware
-  // await setupAuth(app);
+  await setupAuth(app);
   
-  // Temporary middleware to simulate authenticated user
-  const tempAuthBypass = (req: any, res: any, next: any) => {
-    req.user = {
-      claims: {
-        sub: 'demo-user-id', // Default user ID for demo
-        email: 'demo@example.com',
-        first_name: 'Demo',
-        last_name: 'User'
-      }
-    };
-    req.isAuthenticated = () => true;
-    next();
+  // Guest mode middleware - allows unauthenticated access with demo user
+  const guestModeMiddleware = (req: any, res: any, next: any) => {
+    // If already authenticated, continue
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      return next();
+    }
+    
+    // Check if this is a guest mode request
+    const isGuestMode = req.headers['x-guest-mode'] === 'true' || req.query.guest === 'true';
+    
+    if (isGuestMode) {
+      // Simulate guest user
+      req.user = {
+        claims: {
+          sub: 'demo-user-id',
+          email: 'demo@example.com',
+          first_name: 'Demo',
+          last_name: 'User'
+        }
+      };
+      req.isAuthenticated = () => true;
+      return next();
+    }
+    
+    // Default to requiring authentication
+    return isAuthenticated(req, res, next);
   };
 
   // Auth routes
-  app.get('/api/auth/user', tempAuthBypass, async (req: any, res) => {
+  app.get('/api/auth/user', guestModeMiddleware, async (req: any, res) => {
     try {
       const userId = (req.user as any)?.claims?.sub;
       // Return demo user for prototype
@@ -47,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Object storage routes for file serving
-  app.get("/objects/:objectPath(*)", tempAuthBypass, async (req, res) => {
+  app.get("/objects/:objectPath(*)", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const objectStorageService = new ObjectStorageService();
     try {
@@ -71,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload routes
-  app.post("/api/objects/upload", tempAuthBypass, async (req, res) => {
+  app.post("/api/objects/upload", guestModeMiddleware, async (req, res) => {
     try {
       console.log("Getting upload URL for demo user...");
       const objectStorageService = new ObjectStorageService();
@@ -87,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/files/process", tempAuthBypass, async (req, res) => {
+  app.post("/api/files/process", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const schema = z.object({
       uploadURL: z.string(),
@@ -194,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat thread routes
-  app.get("/api/threads", tempAuthBypass, async (req, res) => {
+  app.get("/api/threads", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     try {
       const threads = await storage.getUserChatThreads(userId);
@@ -205,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/threads", tempAuthBypass, async (req, res) => {
+  app.post("/api/threads", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const schema = z.object({
       title: z.string().optional(),
@@ -224,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/threads/:threadId", tempAuthBypass, async (req, res) => {
+  app.patch("/api/threads/:threadId", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
     const schema = z.object({
@@ -248,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/threads/:threadId", tempAuthBypass, async (req, res) => {
+  app.delete("/api/threads/:threadId", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
 
@@ -267,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/threads/:threadId/messages", tempAuthBypass, async (req, res) => {
+  app.get("/api/threads/:threadId/messages", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
 
@@ -286,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/threads/:threadId/messages", tempAuthBypass, async (req, res) => {
+  app.post("/api/threads/:threadId/messages", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
     const schema = z.object({
@@ -435,7 +448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat attachment upload routes (temporary files for conversations)
-  app.post("/api/chat/attachments/upload", tempAuthBypass, async (req, res) => {
+  app.post("/api/chat/attachments/upload", guestModeMiddleware, async (req, res) => {
     try {
       const objectStorageService = new ObjectStorageService();
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
@@ -446,7 +459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/chat/attachments/process", tempAuthBypass, async (req, res) => {
+  app.post("/api/chat/attachments/process", guestModeMiddleware, async (req, res) => {
     const { uploadURL, originalName, mimeType, size, messageId } = req.body;
 
     try {
@@ -502,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File management routes
-  app.get("/api/files", tempAuthBypass, async (req, res) => {
+  app.get("/api/files", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     try {
       const files = await storage.getUserFiles(userId);
@@ -514,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint to reprocess all user files
-  app.post("/api/admin/reprocess-all-files", tempAuthBypass, async (req, res) => {
+  app.post("/api/admin/reprocess-all-files", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     
     try {
@@ -575,7 +588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/files/:fileId/reprocess", tempAuthBypass, async (req, res) => {
+  app.post("/api/files/:fileId/reprocess", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { fileId } = req.params;
 
@@ -620,7 +633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/files/:fileId", tempAuthBypass, async (req, res) => {
+  app.delete("/api/files/:fileId", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { fileId } = req.params;
 
