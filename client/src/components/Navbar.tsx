@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, MessageSquare, FolderOpen, History } from "lucide-react";
-import microscopeImage from "@assets/microscope_1755708356773.jpg";
+import magnifyingGlassImage from "@assets/magnifying-glass-search-black-icon-transparent-background-701751694974241svd11gtb6h_1755712552612.png";
 
 interface NavbarProps {
   activeTab: 'ask' | 'explore' | 'history';
@@ -25,8 +25,8 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
               <img 
-                src={microscopeImage} 
-                alt="Microscope" 
+                src={magnifyingGlassImage} 
+                alt="Magnifying Glass" 
                 className="w-full h-full object-contain"
               />
             </div>

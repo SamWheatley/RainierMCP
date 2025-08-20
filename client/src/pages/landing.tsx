@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, FolderOpen, Brain, Shield } from "lucide-react";
-import microscopeImage from "@assets/microscope_1755708356773.jpg";
+import magnifyingGlassImage from "@assets/magnifying-glass-search-black-icon-transparent-background-701751694974241svd11gtb6h_1755712552612.png";
 
 export default function Landing() {
   return (
@@ -13,8 +13,8 @@ export default function Landing() {
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
                 <img 
-                  src={microscopeImage} 
-                  alt="Microscope" 
+                  src={magnifyingGlassImage} 
+                  alt="Magnifying Glass" 
                   className="w-full h-full object-contain"
                 />
               </div>
