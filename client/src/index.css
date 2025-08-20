@@ -10,7 +10,7 @@
   --card-foreground: hsl(240 10% 3.9%);
   --popover: hsl(0 0% 100%);
   --popover-foreground: hsl(240 10% 3.9%);
-  --primary: hsl(210 83% 53%);
+  --primary: hsl(12 68% 57%);
   --primary-foreground: hsl(0 0% 98%);
   --secondary: hsl(240 4.8% 95.9%);
   --secondary-foreground: hsl(240 5.9% 10%);
@@ -22,8 +22,8 @@
   --destructive-foreground: hsl(0 0% 98%);
   --border: hsl(240 5.9% 90%);
   --input: hsl(240 5.9% 90%);
-  --ring: hsl(210 83% 53%);
-  --chart-1: hsl(210 83% 53%);
+  --ring: hsl(12 68% 57%);
+  --chart-1: hsl(12 68% 57%);
   --chart-2: hsl(159 100% 36%);
   --chart-3: hsl(42 93% 56%);
   --chart-4: hsl(147 78% 42%);
@@ -31,8 +31,8 @@
   --radius: 0.75rem;
   
   /* Ranier-specific colors matching design */
-  --primary-blue: hsl(210 83% 53%);
-  --primary-blue-dark: hsl(210 79% 46%);
+  --primary-orange: hsl(12 68% 57%);
+  --primary-orange-dark: hsl(12 64% 50%);
   --surface: hsl(0 0% 100%);
   --background-gray: hsl(240 4.8% 95.9%);
   --text-primary: hsl(240 10% 13%);
@@ -53,7 +53,7 @@
   --card-foreground: hsl(0 0% 98%);
   --popover: hsl(240 10% 3.9%);
   --popover-foreground: hsl(0 0% 98%);
-  --primary: hsl(210 83% 53%);
+  --primary: hsl(12 68% 57%);
   --primary-foreground: hsl(240 10% 3.9%);
   --secondary: hsl(240 3.7% 15.9%);
   --secondary-foreground: hsl(0 0% 98%);
@@ -65,8 +65,8 @@
   --destructive-foreground: hsl(0 0% 98%);
   --border: hsl(240 3.7% 15.9%);
   --input: hsl(240 3.7% 15.9%);
-  --ring: hsl(210 83% 53%);
-  --chart-1: hsl(210 83% 53%);
+  --ring: hsl(12 68% 57%);
+  --chart-1: hsl(12 68% 57%);
   --chart-2: hsl(159 100% 36%);
   --chart-3: hsl(42 93% 56%);
   --chart-4: hsl(147 78% 42%);
