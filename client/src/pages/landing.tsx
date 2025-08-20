@@ -15,7 +15,7 @@ export default function Landing() {
                 <img 
                   src={microscopeImage} 
                   alt="Microscope" 
-                  className="w-full h-full object-contain filter invert"
+                  className="w-full h-full object-contain"
                 />
               </div>
               <span className="text-xl font-semibold text-gray-900">Come Near</span>

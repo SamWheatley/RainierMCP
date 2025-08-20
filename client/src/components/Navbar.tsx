@@ -27,7 +27,7 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
               <img 
                 src={microscopeImage} 
                 alt="Microscope" 
-                className="w-full h-full object-contain filter invert"
+                className="w-full h-full object-contain"
               />
             </div>
             <div className="flex flex-col">
