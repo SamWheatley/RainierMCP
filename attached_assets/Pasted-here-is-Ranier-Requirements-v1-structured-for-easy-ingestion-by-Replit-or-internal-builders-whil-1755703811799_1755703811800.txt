@@ -1,0 +1,421 @@
+here is Ranier Requirements v1, structured for easy ingestion by Replit (or internal builders), while clean enough to evolve without breaking the system.
+
+Ranier Requirements v1 (Internal Come Near AI Platform)
+1. Purpose & Overview
+
+Ranier is Come Near’s internal research intelligence platform — starting as a transcript & interview analysis tool and evolving into a full InsightStream-style research operating system.
+It will support multiple internal teams (Research, Product, Marketing, Donor Relations) by turning raw qualitative research into searchable, navigable, and actionable insight streams.
+
+2. Core Features (MVP → Phase Expansion)
+Phase	Feature Set	Description
+MVP	Transcript upload + chat	Drag/drop transcripts → ask questions → AI returns answers + reference snippets
+	Ask / Explore interface tabs	Ask = conversational; Explore = browse curated content, files, saved threads
+	Saved private threads	Users have private chat memory/logs (not visible to other users)
+	Agent persona memory	Ranier responds aligned to Come Near AI Tenets
+Phase 2 (InsightStream Phase 1)	Interactive video upload	Upload video → auto transcript → playback with timeline
+	Comment/tag timeline	Time-stamped comments, threads, media attached at moments
+Phase 3 (InsightStream Phase 2)	Semantic video search	Ask anything → returns exact clips, summary, timestamps
+	Clip export	Generate & share insight clips
+	Multi-modal RAG	Pulls from transcripts + comments + attached docs
+Phase 4 (InsightStream Phase 3)	Cross-video synthesis	Group insights across interviews → identify themes
+	Insight dashboard	Theme cards, key clips, highlight reels
+	Export packets	PDF, slides, Notion → auto-generated reports
+3. Interface & UX Principles
+
+Modern, spacious layout (Monogram-style): light neutral backgrounds, generous whitespace, minimal visual noise.
+
+Top navigation bar — left: Come Near logo; center/right: Ask / Explore tabs; user profile.
+
+Ask tab = chat UI ◦ chat history ◦ attach docs button ◦ source-reveal toggle (show references, jump to transcript/video).
+
+Explore tab = card-based browsing of uploads, interviews, saved artifacts; search bar at top.
+
+Color palette: neutral gray/white with a single accent (to be replaced by official Come Near color) for buttons & highlights.
+
+Modular card/section design so future content (video, dashboards) drops in seamlessly.
+
+4. AI Agent Spec (“Ranier AI”)
+Personality Tenets
+
+Voice = sharp, grounded, mission-aligned teammate
+
+Bias-aware: can disclose inference logic and cite confidence (“self-consciously biased not unconsciously biased”)
+
+Contextual: understands Come Near's ethos, donor sensitivities, Segment naming, and tone controls
+
+Memory & Retrieval Stack
+Layer	Storage	Purpose
+Private user memory	SQL DB	Threads + bookmarks per user (not cross-visible)
+Short-term working memory	Prompt-space + cache	Tenets + current task parameters loaded every chat
+Shared semantic memory	Pinecone	All transcripts, approved docs for semantic recall
+Long-term storage	S3-linked data lake	Videos, research artifacts, docs, raw interviews
+RAG Pipeline
+
+Vectorize chunks → store in Pinecone
+
+Query → search → retrieve → compose answer
+
+Return: (a) answer (b) citations links (c) confidence score
+
+Future persona toggle (raw analyst vs. stakeholder-voiced summaries)
+
+Permissions
+
+Admin / Research Lead can tag items as: Global, Team-Only, or Personal
+
+Donor Relations persona = cannot access raw segments flagged “internal only”
+
+5. Technical Architecture
+Frontend (React/Next.js)
+  • Top bar (logo, nav)
+  • Ask/Explore tabs
+  • Chat component
+  • Video player component (Phase 2+)
+  • Insight dashboard (Phase 3+)
+
+Backend (Node.js + Express)
+  • REST/GraphQL
+  • Auth (JWT, RBAC)
+  • Chat + memory CRUD
+  • Transcript/video ingestion
+  • AI orchestration (OpenAI)
+  • Export services (PDF/Slides)
+
+Data & AI Infrastructure
+  • SQL Database – users, private logs
+  • S3 – media/documents
+  • Pinecone – semantic embeddings
+  • Postgres – relational metadata
+  • Whisper API – transcript
+  • FFMPEG – clip generator
+
+6. Phased Build Roadmap (Replit Instructions)
+
+Phase M0 (Pre-flight):
+
+Create Replit “Ranier” workspace with:
+
+Next.js FE, Node backend
+
+Basic top-nav + Ask/Explore routing
+
+Phase 1 (Transcripts MVP):
+
+Upload transcripts (txt/pdf)
+
+Store in S3 → Pinecone index
+
+Build Ask chat that hits RAG
+
+Private thread memory per user in SQL
+
+Phase 2:
+
+Add video player + transcript sync timeline
+
+Time-stamped comment threads + Upload docs
+
+Phase 3:
+
+Build Explore tab with library grid, filters
+
+Semantic query returns clip links
+
+Export PDF / Slides
+
+Phase 4:
+
+Add Cross-interview synthesis & dashboard
+
+7. Open Questions / Design Hooks
+
+Final Come Near style guide / brand colors — pending.
+
+Which internal user roles have admin permissions (to tag “public research” vs. “internal only”)?
+
+Should Ranier include user onboarding flow (i.e. “Welcome, here’s how Come Near research works”) in Phase 1 or defer to Phase 2?
+
+Do we need Slack integration in MVP (send insights to channel) or hold for v2?
+
+Would you like me to:
+
+(a) package this into a Markdown file ready to paste into Replit
+
+(b) move forward into a wireframe layout draft
+
+(c) begin building the "Ranier Agent Personality Prompt" (the prompt file that will govern the AI’s voice and constraints)?
+
+Just tell me which next step you want first.
+
+You said:
+Give them all to me please.
+ChatGPT said:
+
+Understood — initiating full delivery.
+
+✅ Deliverables Included Below
+
+Ranier Requirements (Markdown document)
+
+Wireframe Layout Draft (text format for build)
+
+Ranier AI Personality Prompt (operational system prompt)
+
+📄 1. Ranier Requirements (Markdown File)
+# Ranier Requirements v1
+
+## 1. Overview
+
+Ranier is Come Near’s internal research intelligence platform — starting as a transcript-driven search interface and evolving into a full InsightStream-style research operating system. It will enable team members (Research, Product, Marketing, Donor Relations) to rapidly turn qualitative interviews into searchable, navigable, and actionable insight streams.
+
+---
+
+## 2. Core Features & Capability Phases
+
+| Phase | Capability | Description |
+|------|------------|-------------|
+| **MVP** | Transcript upload + chat | Drag/drop transcripts → ask questions → AI returns answers + reference text snippets |
+|        | Ask / Explore tabs | Ask = conversational. Explore = browse uploads & saved threads |
+|        | Private saved threads | Each user retains their chat history privately |
+| **Phase 2 (InsightStream I)** | Interactive video upload | Auto-transcribe video → sync player + timeline → comment pins |
+| **Phase 3 (InsightStream II)** | Semantic video search & clip return | Ask questions → get timestamps, relevant clips, linked docs |
+| **Phase 4 (InsightStream III)** | Cross-interview synthesis | Dashboards, thematic grouping, highlight reels, exports |
+
+---
+
+## 3. Design & UX Principles
+
+- Neutral, clean Monogram-style layout — generous white space, card modules
+- Top navigation bar
+  - **Left:** Come Near logo
+  - **Center/Right:** Ask | Explore
+- “Ask” uses clean chat UI with source reveal toggle
+- “Explore” uses grid-based browsing, filters, and upload option
+- Single accent color only (until official Come Near branding arrives)
+- Modular layout to future proof additional views (dashboards, player, etc.)
+
+---
+
+## 4. AI Agent Spec ("Ranier AI")
+
+### Come Near AI Tenets
+
+- Voice: strategic insider, warm but sharp, value-driven
+- Bias-aware & transparent: states confidence and acknowledges assumptions
+- Mission-aligned: religious neutrality where appropriate, sensitivity to donor language
+
+### Memory & Retrieval Architecture
+
+| Layer | Implementation | Purpose |
+|------|----------------|--------|
+| **Private user memory** | SQL | Personal threads/bookmarks only visible to that user |
+| **Short term memory** | Prompt/context | Reload Come Near Tenets & task context for each interaction |
+| **Semantic team memory** | Pinecone | All research docs and transcripts searchable across team |
+| **Long-term storage** | S3 | Source-of-truth files (video, pdfs, artifacts) |
+
+### Retrieval-Augmented Generation Pipeline (RAG)
+
+1. Ingest → chunk → embed via OpenAI → store in Pinecone
+2. User query → semantic search across Pinecone → pull top-k
+3. Compose response citing source + confidence
+
+---
+
+## 5. High Level Architecture
+
+
+
+┌──────────────────────────────────────────┐
+│ Frontend │
+│ React/Next.js → Ask/Explore tabs │
+│ Components: Chat | VideoPlayer | Dashboard │
+└──────────────────────────────────────────┘
+│
+┌──────────────────────────────────────────┐
+│ Backend │
+│ Node.js + Express │
+│ Auth (JWT) | Transcript ingest | RAG │
+│ Memory CRUD | Export APIs │
+└──────────────────────────────────────────┘
+│
+┌──────────────────────────────────────────┐
+│ Data Infrastructure │
+│ SQL (user logs) │
+│ Pinecone (vectors) │
+│ S3 Bucket (data lake) │
+│ Whisper API (transcript) │
+│ OpenAI (Q&A / summarization) │
+└──────────────────────────────────────────┘
+
+
+---
+
+## 6. Phased Roadmap (for Replit Agent)
+
+**M0 Setup**
+- Create base Replit project
+- Build nav + Ask/Explore routing scaffolding
+
+**Phase 1**
+- Transcript uploader → S3 + Pinecone ingestion
+- Chat interface with RAG answers
+- User registration/login → write to SQL
+
+**Phase 2**
+- Add video upload + whisper → timestamped transcript
+- Integrated video player with timeline
+
+**Phase 3**
+- Build Explore file library grid
+- Add clip-based responses and PDF/Slides exporter
+
+**Phase 4**
+- Insight dashboards (themes, quotes, highlight reels)
+
+---
+
+## 7. Open Design Questions
+
+- Who are Phase-1 admin users for tagging document access?
+- Do we require Slack/Outlook integration now or later?
+- Should onboarding walkthrough be included at login?
+
+🧩 2. Wireframe Layout Draft
+======== TOP NAV (fixed) ========
+| Come Near Logo |   ASK   |   EXPLORE   |   [User Icon] |
+
+-- ASK VIEW --
+|-------------------------------------------|
+| (Scrollable left-side Chat window)        |
+|                                           |
+| [Message box] [Attach file] [Send]        |
+|-------------------------------------------|
+| Toggle: [Show Sources]                    |
+|-------------------------------------------|
+
+-- EXPLORE VIEW --
+Filters Row: [Search] [Date] [Topic] [Upload Button]
+----------------------------------------------------
+|   + New Upload Card       |   Interview Card      |
+|   (Transcript / Video)    |   Title, date, tags    |
+|-------------------------- |-----------------------|
+|   Interview Card          |   Interview Card       |
+|-------------------------- |-----------------------|
+
+-- FUTURE VIDEO VIEW (Phase 2) --
+| Player (center)                                   |
+| Timeline underneath (waveform + pin markers)      |
+| Right sidebar: scrolling transcript + “Add comment”|
+
+-- FUTURE INSIGHTS DASHBOARD (Phase 4) --
+| Theme Cards in grid (Competitor UX, Donation pain pt) |
+| Each card opens → highlight clips + export options     |
+
+🤖 3. Ranier AI Personality Prompt (System Prompt Draft)
+You are Ranier — Come Near’s internal research intelligence agent.
+
+### Voice & Personality:
+- You are smart, grounded, and insightful — not corporate, not fluffy.
+- You speak as a trusted internal teammate, not as an anonymous AI assistant.
+- You acknowledge uncertainty and bias when appropriate, clearly stating confidence levels.
+- You are transparent about *why* you are making certain inferences.
+- You are sensitive to religious phrasing, donor relationship nuance, and user role context.
+
+### Mission Alignment:
+Your purpose is to help Come Near teams extract meaning from research data (interviews, transcripts, documents) and turn it into insight-driven action without losing the raw humanity of the source.
+
+### Memory Context:
+You have short-term access to:
+- Come Near AI Tenets
+- Previously uploaded and approved documents/transcripts
+- This user's prior thread (if any)
+You may draw from the Pinecone semantic memory for facts and clips, and provide citations.
+
+### Output Requirements:
+- ALWAYS return sources (timestamp or filename) when making factual claims.
+- When summarizing or guessing, explicitly state: “Inference” or “Hypothesis”.
+- Offer proactive follow-up suggestions: (“Would you like me to compare this insight across other interviews?”)
+- Never reveal private threads of other users.
+
+### Style:
+- Clear. Strong. Collegial.  
+- Encourage curiosity and next steps.  
+- Avoid jargon. Balance humility with confidence.
+
+Begin each session with:  
+*“How can I help move your insight forward today?”*
+
+
+Would you like me to now:
+
+Turn this into a Notion page / exportable file?
+
+Begin working on the Phase-1 Replit agent build script?
+
+Or produce a Figma visual wireframe next?
+
+::caleb awaiting instruction::
+
+You said:
+how about the build script
+ChatGPT said:
+
+Perfect — to clarify before I generate the Phase-1 build script:
+
+👇 Should the script be written as:
+
+(A) A step-by-step English spec for a developer using Replit to implement Phase-1?
+
+(B) Actual runnable bash + code scaffolding commands (e.g., npx create-next-app, file structure, starter files)?
+
+(C) Instructions for an autonomous Replit agent (pseudo-API call style telling it what repo/files to generate)?
+
+Let me know which format you want — and if you prefer Next.js (React) or plain React + Vite as the base, since both were options in our roadmap.
+
+Once you choose, I’ll generate the script immediately.
+
+You said:
+C
+ChatGPT said:
+
+Excellent — here is the autonomous Replit agent build script (Phase 1), written as a single JSON-like instruction block that an auto-builder could ingest and act on.
+
+{
+  "project_name": "Ranier",
+  "description": "Come Near internal AI transcript insight platform (Phase 1 MVP)",
+  "stack": {
+    "frontend": "Next.js (React, Typescript)",
+    "backend": "Node.js + Express",
+    "database": "PostgreSQL (via Supabase or Replit DB)",
+    "ai": "OpenAI API + Pinecone"
+  },
+  "initial_file_structure": {
+    "/frontend": {
+      "package.json": "...",
+      "/pages": {
+        "index.tsx": "Home redirects to /ask",
+        "ask.tsx": "Chat view",
+        "explore.tsx": "Upload / file grid"
+      },
+      "/components": {
+        "Navbar.tsx": "Come Near logo + Ask/Explore links",
+        "Chat.tsx": "Chat interface (user input + message list)",
+        "ExploreGrid.tsx": "Grid display of user-uploaded files"
+      },
+      "/utils": {
+        "api.ts": "axios/fetch wrapper for backend"
+      }
+    },
+    "/backend": {
+      "index.js": "Express server w/ /chat, /upload endpoints",
+      "routes/chat.js": "POST /chat → calls OpenAI + Pinecone RAG",
+      "routes/upload.js": "POST /upload → store transcript in S3 + Pinecone",
+      "/db": {
+        "connect.js": "connect to Postgres",
+        "users.sql": "user table",
+        "threads.sql": "private thread table"
+      }
+    }
+  },
+  "phase_1_endpoint_functionality": {
+    "POST /api/chat":
