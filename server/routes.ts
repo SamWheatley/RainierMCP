@@ -325,7 +325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiProvider as AIProviderType, 
         content, 
         contextString, 
-        sources
+        sources,
+        internetAccess
       );
       
       if (usedFallback) {

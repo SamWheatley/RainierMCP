@@ -44,19 +44,49 @@ export async function getAIProvider(providerType: AIProviderType): Promise<AIPro
   }
 }
 
+// Web search function
+async function performWebSearch(query: string): Promise<string> {
+  try {
+    const { performWebSearch: webSearchFn, extractSearchTerms } = await import('./webSearch');
+    const searchTerms = extractSearchTerms(query);
+    return await webSearchFn(searchTerms, 3);
+  } catch (error) {
+    console.error("Web search failed:", error);
+    return "[Web search temporarily unavailable]";
+  }
+}
+
 // Smart fallback function that tries primary provider, then falls back to alternatives
 export async function askWithFallback(
   primaryProvider: AIProviderType,
   question: string,
   context: string,
-  sources: Array<{ filename: string; content: string }>
+  sources: Array<{ filename: string; content: string }>,
+  internetAccess: boolean = false
 ): Promise<{ response: ChatResponse; usedProvider: AIProviderType; usedFallback: boolean }> {
   const fallbackProvider: AIProviderType = primaryProvider === 'openai' ? 'anthropic' : 'openai';
   
+  // Augment sources with web search results if internet access is enabled
+  let augmentedSources = sources;
+  if (internetAccess) {
+    try {
+      const webResults = await performWebSearch(question);
+      augmentedSources = [
+        ...sources,
+        {
+          filename: "Web Search Results",
+          content: webResults
+        }
+      ];
+    } catch (webError) {
+      console.warn("Web search failed, continuing with document-only analysis:", webError);
+    }
+  }
+
   // Try primary provider first
   try {
     const provider = await getAIProvider(primaryProvider);
-    const response = await provider.askRanier(question, context, sources);
+    const response = await provider.askRanier(question, context, augmentedSources);
     return { 
       response, 
       usedProvider: primaryProvider, 
