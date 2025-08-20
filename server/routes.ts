@@ -339,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: file.id,
             name: file.originalName,
             success: false,
-            error: error.message
+            error: error instanceof Error ? error.message : String(error)
           });
         }
       }

@@ -10,8 +10,12 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm font-bold">🔬</span>
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
+                <img 
+                  src="/attached_assets/microscope_1755708356773.jpg" 
+                  alt="Microscope" 
+                  className="w-full h-full object-contain filter brightness-0 invert"
+                />
               </div>
               <span className="text-xl font-semibold text-gray-900">Come Near</span>
               <div className="hidden sm:block w-px h-6 bg-gray-300"></div>

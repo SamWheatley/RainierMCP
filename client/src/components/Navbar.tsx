@@ -22,8 +22,12 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
         <div className="flex justify-between items-center h-16">
           {/* Logo Section */}
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white text-sm font-bold">🔬</span>
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
+              <img 
+                src="/attached_assets/microscope_1755708356773.jpg" 
+                alt="Microscope" 
+                className="w-full h-full object-contain filter brightness-0 invert"
+              />
             </div>
             <div className="flex flex-col">
               <span className="text-xl font-semibold text-gray-900 leading-tight">Come Near</span>
