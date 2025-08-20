@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { askRanier, extractTextFromDocument, generateThreadTitle } from "./openai";
+import { getAIProvider, type AIProviderType } from "./ai-providers";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -150,10 +150,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { threadId } = req.params;
     const schema = z.object({
       content: z.string(),
+      aiProvider: z.enum(['openai', 'anthropic']).optional().default('openai'),
     });
 
     try {
-      const { content } = schema.parse(req.body);
+      const { content, aiProvider } = schema.parse(req.body);
 
       // Verify thread ownership
       const thread = await storage.getChatThread(threadId, userId);
@@ -178,8 +179,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: f.extractedText || "",
       }));
 
-      // Get AI response
-      const aiResponse = await askRanier(content, "", sources);
+      // Get AI provider and response
+      const aiProviderInstance = await getAIProvider(aiProvider as AIProviderType);
+      const aiResponse = await aiProviderInstance.askRanier(content, "", sources);
 
       // Save AI message
       const assistantMessage = await storage.createChatMessage({
@@ -192,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update thread title if this is the first user message
       const allMessages = await storage.getThreadMessages(threadId);
       if (allMessages.filter(m => m.role === "user").length === 1) {
-        const newTitle = await generateThreadTitle(content);
+        const newTitle = await aiProviderInstance.generateThreadTitle(content);
         await storage.updateChatThread(threadId, newTitle);
       }
 

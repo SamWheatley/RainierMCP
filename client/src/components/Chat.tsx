@@ -4,7 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { NotebookPen, Paperclip } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NotebookPen, Paperclip, Brain } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import type { ChatMessage as ChatMessageType } from "@shared/schema";
 
@@ -16,6 +17,7 @@ interface ChatProps {
 export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   const [message, setMessage] = useState("");
   const [showSources, setShowSources] = useState(true);
+  const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic'>('openai');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -44,7 +46,10 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
       if (!threadId) {
         throw new Error("No thread ID");
       }
-      const response = await apiRequest('POST', `/api/threads/${threadId}/messages`, { content });
+      const response = await apiRequest('POST', `/api/threads/${threadId}/messages`, { 
+        content, 
+        aiProvider 
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -93,10 +98,10 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messagesData?.messages]);
+  }, [(messagesData as any)?.messages]);
 
-  const messages: ChatMessageType[] = messagesData?.messages || [];
-  const fileCount = filesData?.files?.length || 0;
+  const messages: ChatMessageType[] = (messagesData as any)?.messages || [];
+  const fileCount = (filesData as any)?.files?.length || 0;
 
   return (
     <div className="lg:col-span-2 bg-white rounded-xl shadow-lg flex flex-col h-[calc(100vh-8rem)]">
@@ -105,15 +110,29 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
         <h2 className="text-xl font-semibold text-gray-900">Research Assistant</h2>
         <p className="text-sm text-gray-600 mt-1">Ask questions about your uploaded research files</p>
         
-        {/* Source Toggle */}
-        <div className="mt-4 flex items-center space-x-4">
+        {/* AI Provider Selection and Settings */}
+        <div className="mt-4 flex items-center space-x-4 flex-wrap gap-2">
+          <div className="flex items-center space-x-2">
+            <Brain className="w-4 h-4 text-gray-500" />
+            <Select value={aiProvider} onValueChange={(value) => setAiProvider(value as 'openai' | 'anthropic')}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="anthropic">Anthropic</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
           <label className="flex items-center space-x-2 cursor-pointer">
             <Checkbox 
               checked={showSources}
-              onCheckedChange={setShowSources}
+              onCheckedChange={(checked) => setShowSources(checked === true)}
             />
             <span className="text-sm text-gray-600">Show source citations</span>
           </label>
+          
           <div className="text-xs text-gray-600 px-2 py-1 bg-gray-100 rounded-full">
             {fileCount} files available
           </div>
