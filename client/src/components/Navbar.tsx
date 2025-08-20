@@ -23,13 +23,11 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
         <div className="flex justify-between items-center h-16">
           {/* Logo Section */}
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
-              <img 
-                src={magnifyingGlassImage} 
-                alt="Magnifying Glass" 
-                className="w-full h-full object-contain"
-              />
-            </div>
+            <img 
+              src={magnifyingGlassImage} 
+              alt="Magnifying Glass" 
+              className="w-8 h-8 object-contain"
+            />
             <div className="flex flex-col">
               <span className="text-xl font-semibold text-gray-900 leading-tight">Come Near</span>
               <span className="text-sm text-gray-600 font-medium leading-tight">Ranier</span>
