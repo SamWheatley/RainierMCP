@@ -21,15 +21,14 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo Section */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm font-bold">🔬</span>
-              </div>
-              <span className="text-xl font-semibold text-gray-900">Come Near</span>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-white text-sm font-bold">🔬</span>
             </div>
-            <div className="hidden sm:block w-px h-6 bg-gray-300"></div>
-            <span className="hidden sm:inline-block text-gray-600 font-medium">Ranier</span>
+            <div className="flex flex-col">
+              <span className="text-xl font-semibold text-gray-900 leading-tight">Come Near</span>
+              <span className="text-sm text-gray-600 font-medium leading-tight">Ranier</span>
+            </div>
           </div>
 
           {/* Navigation Tabs */}
