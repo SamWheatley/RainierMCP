@@ -136,12 +136,12 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   return (
     <div className="lg:col-span-2 bg-white rounded-xl shadow-lg flex flex-col h-[calc(100vh-8rem)]">
       {/* Chat Header */}
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-900">Research Assistant</h2>
-        <p className="text-sm text-gray-600 mt-1">Ask questions about your uploaded research files</p>
+      <div className="p-4 border-b border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-900">Research Assistant</h2>
+        <p className="text-xs text-gray-600 mt-0.5">Ask questions about your uploaded research files</p>
         
         {/* AI Provider Selection and Settings */}
-        <div className="mt-4 flex items-center space-x-4 flex-wrap gap-2">
+        <div className="mt-2 flex items-center space-x-4 flex-wrap gap-2">
           <div className="flex items-center space-x-2">
             <Brain className="w-4 h-4 text-gray-500" />
             <Select value={aiProvider} onValueChange={(value) => setAiProvider(value as 'openai' | 'anthropic')}>
@@ -155,16 +155,16 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
             </Select>
           </div>
           
-          <label className="flex items-center space-x-2 cursor-pointer">
+          <label className="flex items-center space-x-1.5 cursor-pointer">
             <Checkbox 
               checked={showSources}
               onCheckedChange={(checked) => setShowSources(checked === true)}
             />
-            <span className="text-sm text-gray-600">Show source citations</span>
+            <span className="text-xs text-gray-600">Show sources</span>
           </label>
           
-          <div className="text-xs text-gray-600 px-2 py-1 bg-gray-100 rounded-full">
-            {fileCount} files available
+          <div className="text-xs text-gray-600 px-2 py-0.5 bg-gray-100 rounded-full">
+            {fileCount} files
           </div>
         </div>
       </div>
