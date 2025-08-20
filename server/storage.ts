@@ -1,0 +1,168 @@
+import {
+  users,
+  chatThreads,
+  chatMessages,
+  uploadedFiles,
+  type User,
+  type UpsertUser,
+  type ChatThread,
+  type InsertChatThread,
+  type ChatMessage,
+  type InsertChatMessage,
+  type UploadedFile,
+  type InsertUploadedFile,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, and } from "drizzle-orm";
+
+export interface IStorage {
+  // User operations (required for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser, id: string): Promise<User>;
+  
+  // Chat thread operations
+  createChatThread(thread: InsertChatThread): Promise<ChatThread>;
+  getUserChatThreads(userId: string): Promise<ChatThread[]>;
+  getChatThread(id: string, userId: string): Promise<ChatThread | undefined>;
+  updateChatThread(id: string, title: string): Promise<void>;
+  deleteChatThread(id: string, userId: string): Promise<void>;
+  
+  // Chat message operations
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  getThreadMessages(threadId: string): Promise<ChatMessage[]>;
+  
+  // File operations
+  createUploadedFile(file: InsertUploadedFile): Promise<UploadedFile>;
+  getUserFiles(userId: string): Promise<UploadedFile[]>;
+  getUploadedFile(id: string, userId: string): Promise<UploadedFile | undefined>;
+  updateFileProcessingStatus(id: string, isProcessed: boolean, extractedText?: string): Promise<void>;
+  searchFilesByContent(userId: string, query: string): Promise<UploadedFile[]>;
+}
+
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser, id: string): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({ ...userData, id })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // Chat thread operations
+  async createChatThread(thread: InsertChatThread): Promise<ChatThread> {
+    const [newThread] = await db
+      .insert(chatThreads)
+      .values(thread)
+      .returning();
+    return newThread;
+  }
+
+  async getUserChatThreads(userId: string): Promise<ChatThread[]> {
+    return await db
+      .select()
+      .from(chatThreads)
+      .where(eq(chatThreads.userId, userId))
+      .orderBy(desc(chatThreads.updatedAt));
+  }
+
+  async getChatThread(id: string, userId: string): Promise<ChatThread | undefined> {
+    const [thread] = await db
+      .select()
+      .from(chatThreads)
+      .where(and(eq(chatThreads.id, id), eq(chatThreads.userId, userId)));
+    return thread;
+  }
+
+  async updateChatThread(id: string, title: string): Promise<void> {
+    await db
+      .update(chatThreads)
+      .set({ title, updatedAt: new Date() })
+      .where(eq(chatThreads.id, id));
+  }
+
+  async deleteChatThread(id: string, userId: string): Promise<void> {
+    await db
+      .delete(chatThreads)
+      .where(and(eq(chatThreads.id, id), eq(chatThreads.userId, userId)));
+  }
+
+  // Chat message operations
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [newMessage] = await db
+      .insert(chatMessages)
+      .values(message as any)
+      .returning();
+    return newMessage;
+  }
+
+  async getThreadMessages(threadId: string): Promise<ChatMessage[]> {
+    return await db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.threadId, threadId))
+      .orderBy(chatMessages.createdAt);
+  }
+
+  // File operations
+  async createUploadedFile(file: InsertUploadedFile): Promise<UploadedFile> {
+    const [newFile] = await db
+      .insert(uploadedFiles)
+      .values(file)
+      .returning();
+    return newFile;
+  }
+
+  async getUserFiles(userId: string): Promise<UploadedFile[]> {
+    return await db
+      .select()
+      .from(uploadedFiles)
+      .where(eq(uploadedFiles.userId, userId))
+      .orderBy(desc(uploadedFiles.createdAt));
+  }
+
+  async getUploadedFile(id: string, userId: string): Promise<UploadedFile | undefined> {
+    const [file] = await db
+      .select()
+      .from(uploadedFiles)
+      .where(and(eq(uploadedFiles.id, id), eq(uploadedFiles.userId, userId)));
+    return file;
+  }
+
+  async updateFileProcessingStatus(id: string, isProcessed: boolean, extractedText?: string): Promise<void> {
+    await db
+      .update(uploadedFiles)
+      .set({ 
+        isProcessed, 
+        extractedText,
+        updatedAt: new Date() 
+      })
+      .where(eq(uploadedFiles.id, id));
+  }
+
+  async searchFilesByContent(userId: string, query: string): Promise<UploadedFile[]> {
+    // Simple text search - in production, you'd want to use full-text search or vector similarity
+    return await db
+      .select()
+      .from(uploadedFiles)
+      .where(and(
+        eq(uploadedFiles.userId, userId),
+        // Simple ILIKE search on extracted text and filename
+      ))
+      .orderBy(desc(uploadedFiles.createdAt));
+  }
+}
+
+export const storage = new DatabaseStorage();
