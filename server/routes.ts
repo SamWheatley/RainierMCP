@@ -8,15 +8,38 @@ import { getAIProvider, type AIProviderType } from "./ai-providers";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // TEMPORARY: Auth disabled for prototype sharing
   // Auth middleware
-  await setupAuth(app);
+  // await setupAuth(app);
+  
+  // Temporary middleware to simulate authenticated user
+  const tempAuthBypass = (req: any, res: any, next: any) => {
+    req.user = {
+      claims: {
+        sub: 'demo-user-id', // Default user ID for demo
+        email: 'demo@example.com',
+        first_name: 'Demo',
+        last_name: 'User'
+      }
+    };
+    req.isAuthenticated = () => true;
+    next();
+  };
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', tempAuthBypass, async (req: any, res) => {
     try {
       const userId = (req.user as any)?.claims?.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
+      // Return demo user for prototype
+      res.json({
+        id: userId,
+        email: 'demo@example.com',
+        firstName: 'Demo',
+        lastName: 'User',
+        profileImageUrl: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -24,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Object storage routes for file serving
-  app.get("/objects/:objectPath(*)", isAuthenticated, async (req, res) => {
+  app.get("/objects/:objectPath(*)", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const objectStorageService = new ObjectStorageService();
     try {
@@ -48,13 +71,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload routes
-  app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
+  app.post("/api/objects/upload", tempAuthBypass, async (req, res) => {
     const objectStorageService = new ObjectStorageService();
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
     res.json({ uploadURL });
   });
 
-  app.post("/api/files/process", isAuthenticated, async (req, res) => {
+  app.post("/api/files/process", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const schema = z.object({
       uploadURL: z.string(),
@@ -121,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat thread routes
-  app.get("/api/threads", isAuthenticated, async (req, res) => {
+  app.get("/api/threads", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     try {
       const threads = await storage.getUserChatThreads(userId);
@@ -132,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/threads", isAuthenticated, async (req, res) => {
+  app.post("/api/threads", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const schema = z.object({
       title: z.string().optional(),
@@ -151,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/threads/:threadId", isAuthenticated, async (req, res) => {
+  app.patch("/api/threads/:threadId", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
     const schema = z.object({
@@ -175,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/threads/:threadId", isAuthenticated, async (req, res) => {
+  app.delete("/api/threads/:threadId", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
 
@@ -194,7 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/threads/:threadId/messages", isAuthenticated, async (req, res) => {
+  app.get("/api/threads/:threadId/messages", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
 
@@ -213,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/threads/:threadId/messages", isAuthenticated, async (req, res) => {
+  app.post("/api/threads/:threadId/messages", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { threadId } = req.params;
     const schema = z.object({
@@ -362,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat attachment upload routes (temporary files for conversations)
-  app.post("/api/chat/attachments/upload", isAuthenticated, async (req, res) => {
+  app.post("/api/chat/attachments/upload", tempAuthBypass, async (req, res) => {
     try {
       const objectStorageService = new ObjectStorageService();
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
@@ -373,7 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/chat/attachments/process", isAuthenticated, async (req, res) => {
+  app.post("/api/chat/attachments/process", tempAuthBypass, async (req, res) => {
     const { uploadURL, originalName, mimeType, size, messageId } = req.body;
 
     try {
@@ -429,7 +452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File management routes
-  app.get("/api/files", isAuthenticated, async (req, res) => {
+  app.get("/api/files", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     try {
       const files = await storage.getUserFiles(userId);
@@ -441,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint to reprocess all user files
-  app.post("/api/admin/reprocess-all-files", isAuthenticated, async (req, res) => {
+  app.post("/api/admin/reprocess-all-files", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     
     try {
@@ -502,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/files/:fileId/reprocess", isAuthenticated, async (req, res) => {
+  app.post("/api/files/:fileId/reprocess", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { fileId } = req.params;
 
@@ -547,7 +570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/files/:fileId", isAuthenticated, async (req, res) => {
+  app.delete("/api/files/:fileId", tempAuthBypass, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { fileId } = req.params;
 
