@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Video, FileImage, MoreVertical, MessageSquare, Download } from "lucide-react";
+import { FileText, Video, FileImage, MoreVertical, MessageSquare, Download, RefreshCw } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { UploadedFile } from "@shared/schema";
 
 interface FileCardProps {
@@ -10,6 +13,29 @@ interface FileCardProps {
 }
 
 export default function FileCard({ file, onAskQuestions }: FileCardProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const reprocessMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest('POST', `/api/files/${file.id}/reprocess`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "File reprocessing started",
+        description: "Your file is being reprocessed and will be ready shortly.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/files'] });
+    },
+    onError: () => {
+      toast({
+        title: "Reprocessing failed",
+        description: "There was an error reprocessing your file. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getFileIcon = (mimeType: string) => {
     if (mimeType.includes('video')) return Video;
     if (mimeType.includes('image')) return FileImage;
@@ -116,14 +142,29 @@ export default function FileCard({ file, onAskQuestions }: FileCardProps) {
             size="sm"
             onClick={onAskQuestions}
             className="text-primary hover:text-primary/80 text-sm font-medium"
+            disabled={!file.isProcessed}
           >
             <MessageSquare className="h-4 w-4 mr-1" />
             Ask Questions
           </Button>
-          <Button variant="ghost" size="sm" className="text-gray-600 hover:text-primary text-sm">
-            <Download className="h-4 w-4 mr-1" />
-            Download
-          </Button>
+          <div className="flex space-x-1">
+            {!file.isProcessed && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => reprocessMutation.mutate()}
+                disabled={reprocessMutation.isPending}
+                className="text-orange-600 hover:text-orange-800 text-sm"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${reprocessMutation.isPending ? 'animate-spin' : ''}`} />
+                Reprocess
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-primary text-sm">
+              <Download className="h-4 w-4 mr-1" />
+              Download
+            </Button>
+          </div>
         </div>
       </div>
     </div>
