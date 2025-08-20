@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { NotebookPen, Paperclip, Brain } from "lucide-react";
 import ChatMessage from "./ChatMessage";
+import UploadZone from "./UploadZone";
 import type { ChatMessage as ChatMessageType } from "@shared/schema";
 
 interface ChatProps {
@@ -18,6 +20,7 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   const [message, setMessage] = useState("");
   const [showSources, setShowSources] = useState(true);
   const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic'>('openai');
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -192,6 +195,7 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
           <Button 
             variant="ghost" 
             size="icon"
+            onClick={() => setShowUploadDialog(true)}
             className="text-gray-600 hover:text-primary"
           >
             <Paperclip className="h-5 w-5" />
@@ -216,6 +220,19 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
           </Button>
         </div>
       </div>
+      
+      {/* Upload Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="max-w-2xl">
+          <UploadZone 
+            onComplete={() => {
+              setShowUploadDialog(false);
+              queryClient.invalidateQueries({ queryKey: ['/api/files'] });
+            }}
+            onClose={() => setShowUploadDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
