@@ -72,9 +72,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // File upload routes
   app.post("/api/objects/upload", tempAuthBypass, async (req, res) => {
-    const objectStorageService = new ObjectStorageService();
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    res.json({ uploadURL });
+    try {
+      console.log("Getting upload URL for demo user...");
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      console.log("Generated upload URL:", uploadURL);
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ 
+        error: "Failed to get upload URL",
+        details: error.message 
+      });
+    }
   });
 
   app.post("/api/files/process", tempAuthBypass, async (req, res) => {
@@ -87,14 +97,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     try {
+      // Ensure demo user exists in database
+      if (userId === 'demo-user-id') {
+        try {
+          await storage.upsertUser({
+            email: 'demo@example.com',
+            firstName: 'Demo',
+            lastName: 'User',
+            profileImageUrl: null,
+          }, userId);
+        } catch (userError) {
+          console.warn("Failed to ensure demo user exists:", userError);
+        }
+      }
       const { uploadURL, originalName, mimeType, size } = schema.parse(req.body);
       const objectStorageService = new ObjectStorageService();
       
       // Set ACL policy for private file
-      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(uploadURL, {
-        owner: userId,
-        visibility: "private",
-      });
+      let objectPath;
+      try {
+        objectPath = await objectStorageService.trySetObjectEntityAclPolicy(uploadURL, {
+          owner: userId,
+          visibility: "private",
+        });
+      } catch (aclError) {
+        console.warn("ACL policy setting failed, using normalized path:", aclError);
+        // Fallback to normalized path if ACL fails
+        objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+      }
 
       // Create file record in database
       const file = await storage.createUploadedFile({
@@ -132,6 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
       } catch (extractionError) {
         console.error("Error extracting text from file:", extractionError);
+        // Continue with basic file info even if extraction fails
         // Mark as processed but without extracted text if extraction fails
         await storage.updateFileProcessingStatus(file.id, true);
       }
@@ -139,7 +170,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ file });
     } catch (error) {
       console.error("Error processing file:", error);
-      res.status(500).json({ error: "Failed to process file" });
+      console.error("Full error details:", {
+        message: error.message,
+        stack: error.stack,
+        uploadURL: req.body.uploadURL,
+        originalName: req.body.originalName,
+        userId
+      });
+      res.status(500).json({ 
+        error: "Failed to process file",
+        details: error.message 
+      });
     }
   });
 
