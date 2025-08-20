@@ -78,11 +78,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       console.log("Generated upload URL:", uploadURL);
       res.json({ uploadURL });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error getting upload URL:", error);
       res.status(500).json({ 
         error: "Failed to get upload URL",
-        details: error.message 
+        details: error?.message || "Unknown error" 
       });
     }
   });
@@ -99,19 +99,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { uploadURL, originalName, mimeType, size } = schema.parse(req.body);
       
+      console.log(`Processing file upload for user: ${userId}`);
+      
       // Ensure demo user exists in database FIRST
       if (userId === 'demo-user-id') {
+        console.log("Creating demo user in database...");
         try {
-          await storage.upsertUser({
+          const demoUser = await storage.upsertUser({
             email: 'demo@example.com',
             firstName: 'Demo',
             lastName: 'User',
             profileImageUrl: null,
           }, userId);
-          console.log("Demo user ensured in database");
-        } catch (userError) {
+          console.log("Demo user created successfully:", demoUser.id);
+        } catch (userError: any) {
           console.error("Failed to ensure demo user exists:", userError);
-          return res.status(500).json({ error: "Failed to create demo user" });
+          return res.status(500).json({ 
+            error: "Failed to create demo user", 
+            details: userError?.message || "User creation failed"
+          });
         }
       }
       const objectStorageService = new ObjectStorageService();
@@ -171,18 +177,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ file });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error processing file:", error);
       console.error("Full error details:", {
-        message: error.message,
-        stack: error.stack,
+        message: error?.message,
+        stack: error?.stack,
         uploadURL: req.body.uploadURL,
         originalName: req.body.originalName,
         userId
       });
       res.status(500).json({ 
         error: "Failed to process file",
-        details: error.message 
+        details: error?.message || "Unknown processing error"
       });
     }
   });
