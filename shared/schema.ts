@@ -54,6 +54,25 @@ export const chatMessages = pgTable("chat_messages", {
     excerpt: string;
     confidence: number;
   }>>(),
+  attachments: jsonb("attachments").$type<Array<{
+    id: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Temporary chat attachments table for files used only in conversations
+export const chatAttachments = pgTable("chat_attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id").notNull().references(() => chatMessages.id, { onDelete: "cascade" }),
+  filename: varchar("filename").notNull(),
+  originalName: varchar("original_name").notNull(),
+  mimeType: varchar("mime_type").notNull(),
+  size: real("size").notNull(),
+  objectPath: varchar("object_path").notNull(),
+  extractedText: text("extracted_text"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -91,6 +110,11 @@ export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
   createdAt: true,
 });
 
+export const insertChatAttachmentSchema = createInsertSchema(chatAttachments).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUploadedFileSchema = createInsertSchema(uploadedFiles).omit({
   id: true,
   createdAt: true,
@@ -104,5 +128,7 @@ export type InsertChatThread = z.infer<typeof insertChatThreadSchema>;
 export type ChatThread = typeof chatThreads.$inferSelect;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatAttachment = z.infer<typeof insertChatAttachmentSchema>;
+export type ChatAttachment = typeof chatAttachments.$inferSelect;
 export type InsertUploadedFile = z.infer<typeof insertUploadedFileSchema>;
 export type UploadedFile = typeof uploadedFiles.$inferSelect;

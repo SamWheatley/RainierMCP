@@ -219,10 +219,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const schema = z.object({
       content: z.string(),
       aiProvider: z.enum(['openai', 'anthropic']).optional().default('openai'),
+      attachments: z.array(z.object({
+        id: z.string(),
+        originalName: z.string(),
+        extractedText: z.string().optional(),
+      })).optional(),
     });
 
     try {
-      const { content, aiProvider } = schema.parse(req.body);
+      const { content, aiProvider, attachments } = schema.parse(req.body);
 
       // Verify thread ownership
       const thread = await storage.getChatThread(threadId, userId);
@@ -230,22 +235,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Thread not found" });
       }
 
-      // Save user message
+      // Save user message with attachments info
       const userMessage = await storage.createChatMessage({
         threadId,
         role: "user",
         content,
+        attachments: attachments?.map(att => ({
+          id: att.id,
+          filename: att.originalName,
+          mimeType: 'application/octet-stream',
+          size: 0,
+        })),
       });
 
       // Get user's files for context
       const userFiles = await storage.getUserFiles(userId);
       const processedFiles = userFiles.filter(f => f.isProcessed && f.extractedText);
       
-      // Prepare context for AI
-      const sources = processedFiles.map(f => ({
-        filename: f.originalName,
-        content: f.extractedText || "",
-      }));
+      // Prepare context from both permanent files and temporary attachments
+      const sources = [
+        ...processedFiles.map(f => ({
+          filename: f.originalName,
+          content: f.extractedText || "",
+        })),
+        ...(attachments?.filter(att => att.extractedText).map(att => ({
+          filename: att.originalName,
+          content: att.extractedText || "",
+        })) || [])
+      ];
 
       // Get AI provider and response
       const aiProviderInstance = await getAIProvider(aiProvider as AIProviderType);
@@ -274,6 +291,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error sending message:", error);
       res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  // Chat attachment upload routes (temporary files for conversations)
+  app.post("/api/chat/attachments/upload", isAuthenticated, async (req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting chat attachment upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  app.post("/api/chat/attachments/process", isAuthenticated, async (req, res) => {
+    const { uploadURL, originalName, mimeType, size, messageId } = req.body;
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+
+      // Download and process the file content
+      const fileContent = await objectStorageService.getObjectEntityFile(objectPath);
+      const chunks: Buffer[] = [];
+      const stream = fileContent.createReadStream();
+
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      const rawContent = Buffer.concat(chunks).toString('utf-8');
+      console.log(`Downloaded chat attachment ${originalName}, length: ${rawContent.length}`);
+
+      // Extract text using AI
+      const { extractTextFromDocument } = await import('./openai');
+      const extractedText = await extractTextFromDocument(rawContent, originalName);
+      console.log(`Extracted text for chat attachment ${originalName}, length: ${extractedText.length}`);
+
+      // Create chat attachment (not permanent file)
+      const attachment = await storage.createChatAttachment({
+        messageId,
+        filename: originalName.replace(/[^a-zA-Z0-9.-]/g, '_'),
+        originalName,
+        mimeType,
+        size,
+        objectPath,
+        extractedText,
+      });
+
+      res.json({ attachment });
+    } catch (error) {
+      console.error("Error processing chat attachment:", error);
+      res.status(500).json({ error: "Failed to process attachment" });
     }
   });
 

@@ -6,10 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { NotebookPen, Paperclip, Brain } from "lucide-react";
+import { NotebookPen, Paperclip, Brain, FileText, X } from "lucide-react";
 import ChatMessage from "./ChatMessage";
-import UploadZone from "./UploadZone";
-import type { ChatMessage as ChatMessageType } from "@shared/schema";
+import ChatAttachmentUploader from "./ChatAttachmentUploader";
+import type { ChatMessage as ChatMessageType, ChatAttachment } from "@shared/schema";
 
 interface ChatProps {
   threadId: string | null;
@@ -20,7 +20,8 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   const [message, setMessage] = useState("");
   const [showSources, setShowSources] = useState(true);
   const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic'>('openai');
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showAttachmentDialog, setShowAttachmentDialog] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -45,13 +46,14 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ content, targetThreadId }: { content: string; targetThreadId: string }) => {
+    mutationFn: async ({ content, targetThreadId, attachments }: { content: string; targetThreadId: string; attachments?: ChatAttachment[] }) => {
       if (!targetThreadId) {
         throw new Error("No thread ID");
       }
       const response = await apiRequest('POST', `/api/threads/${targetThreadId}/messages`, { 
         content, 
-        aiProvider 
+        aiProvider,
+        attachments 
       });
       return response.json();
     },
@@ -60,6 +62,7 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/threads', targetThreadId, 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['/api/threads'] });
       setMessage("");
+      setPendingAttachments([]); // Clear attachments after sending
     },
   });
 
@@ -72,9 +75,17 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
         const result = await createThreadMutation.mutateAsync();
         const newThreadId = result.thread.id;
         // Send message to new thread
-        await sendMessageMutation.mutateAsync({ content: message, targetThreadId: newThreadId });
+        await sendMessageMutation.mutateAsync({ 
+          content: message, 
+          targetThreadId: newThreadId,
+          attachments: pendingAttachments 
+        });
       } else {
-        await sendMessageMutation.mutateAsync({ content: message, targetThreadId: threadId });
+        await sendMessageMutation.mutateAsync({ 
+          content: message, 
+          targetThreadId: threadId,
+          attachments: pendingAttachments 
+        });
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -191,12 +202,52 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
       
       {/* Chat Input */}
       <div className="p-6 border-t border-gray-200">
+        {/* Show pending attachments */}
+        {pendingAttachments.length > 0 && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">
+                Attached for this message ({pendingAttachments.length}):
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPendingAttachments([])}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Clear all
+              </Button>
+            </div>
+            <div className="space-y-1">
+              {pendingAttachments.map((attachment, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    <span className="text-gray-700">{attachment.originalName}</span>
+                    <span className="text-gray-500">
+                      ({attachment.extractedText ? `${Math.round(attachment.extractedText.length / 1000)}k chars` : 'Processing...'})
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPendingAttachments(prev => prev.filter((_, i) => i !== index))}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         <div className="flex items-end space-x-3">
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => setShowUploadDialog(true)}
-            className="text-gray-600 hover:text-primary"
+            onClick={() => setShowAttachmentDialog(true)}
+            className={`text-gray-600 hover:text-primary ${pendingAttachments.length > 0 ? 'bg-primary/10 text-primary' : ''}`}
           >
             <Paperclip className="h-5 w-5" />
           </Button>
@@ -221,18 +272,14 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
         </div>
       </div>
       
-      {/* Upload Dialog */}
-      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="max-w-2xl">
-          <UploadZone 
-            onComplete={() => {
-              setShowUploadDialog(false);
-              queryClient.invalidateQueries({ queryKey: ['/api/files'] });
-            }}
-            onClose={() => setShowUploadDialog(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Chat Attachment Dialog */}
+      <ChatAttachmentUploader
+        open={showAttachmentDialog}
+        onClose={() => setShowAttachmentDialog(false)}
+        onAttachmentsReady={(attachments) => {
+          setPendingAttachments(attachments);
+        }}
+      />
     </div>
   );
 }

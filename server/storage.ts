@@ -2,6 +2,7 @@ import {
   users,
   chatThreads,
   chatMessages,
+  chatAttachments,
   uploadedFiles,
   type User,
   type UpsertUser,
@@ -9,6 +10,8 @@ import {
   type InsertChatThread,
   type ChatMessage,
   type InsertChatMessage,
+  type ChatAttachment,
+  type InsertChatAttachment,
   type UploadedFile,
   type InsertUploadedFile,
 } from "@shared/schema";
@@ -30,6 +33,10 @@ export interface IStorage {
   // Chat message operations
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getThreadMessages(threadId: string): Promise<ChatMessage[]>;
+  
+  // Chat attachment operations
+  createChatAttachment(attachment: InsertChatAttachment): Promise<ChatAttachment>;
+  getMessageAttachments(messageId: string): Promise<ChatAttachment[]>;
   
   // File operations
   createUploadedFile(file: InsertUploadedFile): Promise<UploadedFile>;
@@ -114,6 +121,23 @@ export class DatabaseStorage implements IStorage {
       .from(chatMessages)
       .where(eq(chatMessages.threadId, threadId))
       .orderBy(chatMessages.createdAt);
+  }
+
+  // Chat attachment operations
+  async createChatAttachment(attachment: InsertChatAttachment): Promise<ChatAttachment> {
+    const [newAttachment] = await db
+      .insert(chatAttachments)
+      .values(attachment)
+      .returning();
+    return newAttachment;
+  }
+
+  async getMessageAttachments(messageId: string): Promise<ChatAttachment[]> {
+    return await db
+      .select()
+      .from(chatAttachments)
+      .where(eq(chatAttachments.messageId, messageId))
+      .orderBy(chatAttachments.createdAt);
   }
 
   // File operations
