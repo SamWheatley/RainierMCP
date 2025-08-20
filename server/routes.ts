@@ -84,9 +84,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isProcessed: false,
       });
 
-      // TODO: Process file content for text extraction in background
-      // For now, mark as processed
-      await storage.updateFileProcessingStatus(file.id, true);
+      // Download and process file content for text extraction
+      try {
+        const fileContent = await objectStorageService.getObjectEntityFile(objectPath);
+        
+        // Get the file content as text
+        const chunks: Buffer[] = [];
+        const stream = fileContent.createReadStream();
+        
+        for await (const chunk of stream) {
+          chunks.push(chunk);
+        }
+        
+        const rawContent = Buffer.concat(chunks).toString('utf-8');
+        console.log(`Downloaded file content for ${originalName}, length: ${rawContent.length}`);
+        
+        // Extract clean text using AI (default to OpenAI)
+        const { extractTextFromDocument } = await import('./openai');
+        const extractedText = await extractTextFromDocument(rawContent, originalName);
+        console.log(`Extracted text for ${originalName}, length: ${extractedText.length}`);
+        
+        // Update file with extracted text
+        await storage.updateFileProcessingStatus(file.id, true, extractedText);
+        
+      } catch (extractionError) {
+        console.error("Error extracting text from file:", extractionError);
+        // Mark as processed but without extracted text if extraction fails
+        await storage.updateFileProcessingStatus(file.id, true);
+      }
 
       res.json({ file });
     } catch (error) {
@@ -214,27 +239,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's files for context
       const userFiles = await storage.getUserFiles(userId);
-      console.log(`Found ${userFiles.length} total files for user ${userId}`);
-      
       const processedFiles = userFiles.filter(f => f.isProcessed && f.extractedText);
-      console.log(`Found ${processedFiles.length} processed files with extracted text`);
-      
-      if (processedFiles.length > 0) {
-        console.log('Processed files:', processedFiles.map(f => ({
-          name: f.originalName,
-          isProcessed: f.isProcessed,
-          hasExtractedText: !!f.extractedText,
-          extractedTextLength: f.extractedText?.length || 0
-        })));
-      }
       
       // Prepare context for AI
       const sources = processedFiles.map(f => ({
         filename: f.originalName,
         content: f.extractedText || "",
       }));
-      
-      console.log(`Passing ${sources.length} sources to AI provider`);
 
       // Get AI provider and response
       const aiProviderInstance = await getAIProvider(aiProvider as AIProviderType);
@@ -275,6 +286,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching files:", error);
       res.status(500).json({ error: "Failed to fetch files" });
+    }
+  });
+
+  app.post("/api/files/:fileId/reprocess", isAuthenticated, async (req, res) => {
+    const userId = (req.user as any)?.claims?.sub;
+    const { fileId } = req.params;
+
+    try {
+      const file = await storage.getUploadedFile(fileId, userId);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      
+      try {
+        // Download file content
+        const fileContent = await objectStorageService.getObjectEntityFile(file.objectPath);
+        
+        const chunks: Buffer[] = [];
+        const stream = fileContent.createReadStream();
+        
+        for await (const chunk of stream) {
+          chunks.push(chunk);
+        }
+        
+        const rawContent = Buffer.concat(chunks).toString('utf-8');
+        console.log(`Reprocessing file ${file.originalName}, content length: ${rawContent.length}`);
+        
+        // Extract text using AI
+        const { extractTextFromDocument } = await import('./openai');
+        const extractedText = await extractTextFromDocument(rawContent, file.originalName);
+        console.log(`Extracted text for ${file.originalName}, length: ${extractedText.length}`);
+        
+        // Update file with extracted text
+        await storage.updateFileProcessingStatus(file.id, true, extractedText);
+        
+        res.json({ success: true, extractedTextLength: extractedText.length });
+      } catch (extractionError) {
+        console.error("Error reprocessing file:", extractionError);
+        res.status(500).json({ error: "Failed to extract text from file" });
+      }
+    } catch (error) {
+      console.error("Error reprocessing file:", error);
+      res.status(500).json({ error: "Failed to reprocess file" });
     }
   });
 
