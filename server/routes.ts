@@ -557,8 +557,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "File not found" });
       }
 
-      // TODO: Delete from object storage
-      // TODO: Delete from database
+      // Delete from object storage if objectPath exists
+      if (file.objectPath) {
+        try {
+          const objectStorageService = new ObjectStorageService();
+          const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+          await objectFile.delete();
+          console.log(`Deleted object storage file: ${file.objectPath}`);
+        } catch (storageError) {
+          console.warn("Error deleting from object storage:", storageError);
+          // Continue with database deletion even if object storage fails
+        }
+      }
+
+      // Delete from database
+      await storage.deleteUploadedFile(fileId, userId);
+      console.log(`Deleted file ${file.originalName} (${fileId}) for user ${userId}`);
       
       res.json({ success: true });
     } catch (error) {

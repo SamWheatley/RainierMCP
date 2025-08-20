@@ -36,6 +36,26 @@ export default function FileCard({ file, onAskQuestions }: FileCardProps) {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest('DELETE', `/api/files/${file.id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "File deleted",
+        description: "Your file has been successfully deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/files'] });
+    },
+    onError: () => {
+      toast({
+        title: "Delete failed",
+        description: "There was an error deleting your file. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getFileIcon = (mimeType: string) => {
     if (mimeType.includes('video')) return Video;
     if (mimeType.includes('image')) return FileImage;
@@ -98,7 +118,15 @@ export default function FileCard({ file, onAskQuestions }: FileCardProps) {
                 <Download className="h-4 w-4 mr-2" />
                 Download
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">
+              <DropdownMenuItem 
+                className="text-red-600"
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete "${file.originalName}"? This action cannot be undone.`)) {
+                    deleteMutation.mutate();
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+              >
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -112,7 +140,7 @@ export default function FileCard({ file, onAskQuestions }: FileCardProps) {
         )}
         
         <div className="flex items-center justify-between text-xs text-gray-600 mb-4">
-          <span>Uploaded {formatDate(file.createdAt!)}</span>
+          <span>Uploaded {formatDate(file.createdAt! as string)}</span>
           <Badge 
             variant={file.isProcessed ? "default" : "secondary"}
             className={file.isProcessed ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}

@@ -43,6 +43,7 @@ export interface IStorage {
   getUserFiles(userId: string): Promise<UploadedFile[]>;
   getUploadedFile(id: string, userId: string): Promise<UploadedFile | undefined>;
   updateFileProcessingStatus(id: string, isProcessed: boolean, extractedText?: string): Promise<void>;
+  deleteUploadedFile(id: string, userId: string): Promise<void>;
   searchFilesByContent(userId: string, query: string): Promise<UploadedFile[]>;
 }
 
@@ -174,6 +175,12 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date() 
       })
       .where(eq(uploadedFiles.id, id));
+  }
+
+  async deleteUploadedFile(id: string, userId: string): Promise<void> {
+    await db
+      .delete(uploadedFiles)
+      .where(and(eq(uploadedFiles.id, id), eq(uploadedFiles.userId, userId)));
   }
 
   async searchFilesByContent(userId: string, query: string): Promise<UploadedFile[]> {
