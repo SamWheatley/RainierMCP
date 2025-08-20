@@ -220,9 +220,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       content: z.string(),
       aiProvider: z.enum(['openai', 'anthropic']).optional().default('openai'),
       attachments: z.array(z.object({
-        id: z.string(),
+        uploadURL: z.string(),
         originalName: z.string(),
-        extractedText: z.string().optional(),
+        mimeType: z.string(),
+        size: z.number(),
       })).optional(),
     });
 
@@ -235,16 +236,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Thread not found" });
       }
 
+      // Process attachments if any
+      let attachmentTexts: Array<{filename: string, content: string}> = [];
+      if (attachments && attachments.length > 0) {
+        for (const attachment of attachments) {
+          try {
+            const objectStorageService = new ObjectStorageService();
+            const objectPath = objectStorageService.normalizeObjectEntityPath(attachment.uploadURL);
+            const fileContent = await objectStorageService.getObjectEntityFile(objectPath);
+            
+            const chunks: Buffer[] = [];
+            const stream = fileContent.createReadStream();
+            for await (const chunk of stream) {
+              chunks.push(chunk);
+            }
+            
+            const rawContent = Buffer.concat(chunks).toString('utf-8');
+            
+            // Extract text using AI with error handling
+            let extractedText = "";
+            try {
+              const { extractTextFromDocument } = await import('./openai');
+              extractedText = await extractTextFromDocument(rawContent, attachment.originalName);
+            } catch (extractionError) {
+              console.error("Error extracting text from attachment:", extractionError);
+              extractedText = rawContent.slice(0, 50000); // Limit to first 50k chars
+            }
+            
+            // Sanitize text
+            const sanitizedText = extractedText
+              .replace(/\0/g, '')
+              .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+              .trim();
+              
+            attachmentTexts.push({
+              filename: attachment.originalName,
+              content: sanitizedText
+            });
+          } catch (error) {
+            console.error(`Error processing attachment ${attachment.originalName}:`, error);
+          }
+        }
+      }
+
       // Save user message with attachments info
       const userMessage = await storage.createChatMessage({
         threadId,
         role: "user",
         content,
         attachments: attachments?.map(att => ({
-          id: att.id,
+          id: att.uploadURL,
           filename: att.originalName,
-          mimeType: 'application/octet-stream',
-          size: 0,
+          mimeType: att.mimeType,
+          size: att.size,
         })),
       });
 
@@ -258,10 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filename: f.originalName,
           content: f.extractedText || "",
         })),
-        ...(attachments?.filter(att => att.extractedText).map(att => ({
-          filename: att.originalName,
-          content: att.extractedText || "",
-        })) || [])
+        ...attachmentTexts
       ];
 
       // Get AI provider and response
@@ -325,10 +366,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rawContent = Buffer.concat(chunks).toString('utf-8');
       console.log(`Downloaded chat attachment ${originalName}, length: ${rawContent.length}`);
 
-      // Extract text using AI
-      const { extractTextFromDocument } = await import('./openai');
-      const extractedText = await extractTextFromDocument(rawContent, originalName);
-      console.log(`Extracted text for chat attachment ${originalName}, length: ${extractedText.length}`);
+      // Extract text using AI with error handling
+      let extractedText = "";
+      try {
+        const { extractTextFromDocument } = await import('./openai');
+        extractedText = await extractTextFromDocument(rawContent, originalName);
+        console.log(`Extracted text for chat attachment ${originalName}, length: ${extractedText.length}`);
+      } catch (extractionError) {
+        console.error("Error extracting text from chat attachment:", extractionError);
+        // Use raw content as fallback if extraction fails
+        extractedText = rawContent.slice(0, 50000); // Limit to first 50k chars
+      }
+
+      // Sanitize text for database storage (remove null bytes and other problematic characters)
+      const sanitizedText = extractedText
+        .replace(/\0/g, '') // Remove null bytes
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+        .trim();
 
       // Create chat attachment (not permanent file)
       const attachment = await storage.createChatAttachment({
@@ -338,7 +392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType,
         size,
         objectPath,
-        extractedText,
+        extractedText: sanitizedText,
       });
 
       res.json({ attachment });

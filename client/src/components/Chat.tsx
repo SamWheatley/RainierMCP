@@ -21,7 +21,7 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   const [showSources, setShowSources] = useState(true);
   const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic'>('openai');
   const [showAttachmentDialog, setShowAttachmentDialog] = useState(false);
-  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -225,7 +225,7 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
                     <FileText className="w-4 h-4 text-primary" />
                     <span className="text-gray-700">{attachment.originalName}</span>
                     <span className="text-gray-500">
-                      ({attachment.extractedText ? `${Math.round(attachment.extractedText.length / 1000)}k chars` : 'Processing...'})
+                      ({(attachment.size / 1024 / 1024).toFixed(1)} MB)
                     </span>
                   </div>
                   <Button

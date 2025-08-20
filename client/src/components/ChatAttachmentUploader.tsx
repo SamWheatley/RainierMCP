@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,12 +6,18 @@ import { ObjectUploader } from "./ObjectUploader";
 import { X, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { UploadResult } from "@uppy/core";
-import type { ChatAttachment } from "@shared/schema";
+
+interface AttachmentData {
+  uploadURL: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+}
 
 interface ChatAttachmentUploaderProps {
   open: boolean;
   onClose: () => void;
-  onAttachmentsReady: (attachments: ChatAttachment[]) => void;
+  onAttachmentsReady: (attachments: AttachmentData[]) => void;
 }
 
 export default function ChatAttachmentUploader({ 
@@ -21,31 +26,8 @@ export default function ChatAttachmentUploader({
   onAttachmentsReady 
 }: ChatAttachmentUploaderProps) {
   const { toast } = useToast();
-  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentData[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  const processAttachmentMutation = useMutation({
-    mutationFn: async (fileData: {
-      uploadURL: string;
-      originalName: string;
-      mimeType: string;
-      size: number;
-      messageId: string;
-    }) => {
-      const response = await apiRequest('POST', '/api/chat/attachments/process', fileData);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setAttachments(prev => [...prev, data.attachment]);
-    },
-    onError: (error) => {
-      toast({
-        title: "Attachment processing failed",
-        description: "There was an error processing your attachment. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
 
   const handleGetUploadParameters = async () => {
     const response = await apiRequest('POST', '/api/chat/attachments/upload', {});
@@ -59,19 +41,16 @@ export default function ChatAttachmentUploader({
   const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     const successfulUploads = result.successful;
     
-    if (successfulUploads.length > 0) {
-      setIsProcessing(true);
+    if (successfulUploads && successfulUploads.length > 0) {
+      // Just store the upload info, don't process yet
+      const newAttachments = successfulUploads.map(upload => ({
+        uploadURL: upload.uploadURL || '',
+        originalName: upload.name || 'Unknown file',
+        mimeType: upload.type || 'application/octet-stream',
+        size: upload.size || 0,
+      }));
       
-      // Process each uploaded file as a temporary attachment
-      successfulUploads.forEach(upload => {
-        processAttachmentMutation.mutate({
-          uploadURL: upload.uploadURL || '',
-          originalName: upload.name,
-          mimeType: upload.type || 'application/octet-stream',
-          size: upload.size || 0,
-          messageId: 'temp', // Will be updated when message is created
-        });
-      });
+      setAttachments(prev => [...prev, ...newAttachments]);
     }
   };
 
@@ -124,9 +103,7 @@ export default function ChatAttachmentUploader({
                       <div>
                         <p className="text-sm font-medium">{attachment.originalName}</p>
                         <p className="text-xs text-gray-500">
-                          {attachment.extractedText 
-                            ? `${attachment.extractedText.length} characters extracted`
-                            : 'Processing...'}
+                          {(attachment.size / 1024 / 1024).toFixed(1)} MB • Ready to attach
                         </p>
                       </div>
                     </div>
@@ -154,7 +131,6 @@ export default function ChatAttachmentUploader({
                 
                 <Button 
                   onClick={handleUseAttachments}
-                  disabled={isProcessing || processAttachmentMutation.isPending}
                   className="bg-primary hover:bg-primary/90"
                 >
                   Use in Chat ({attachments.length})

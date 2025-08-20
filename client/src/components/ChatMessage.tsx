@@ -3,6 +3,7 @@ import SourceCitations from "./SourceCitations";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessage } from "@shared/schema";
+import { FileText, Paperclip } from "lucide-react";
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -25,6 +26,19 @@ export default function ChatMessage({ message, showSources }: ChatMessageProps) 
             ? 'bg-primary text-white' 
             : 'bg-gray-50'
         }`}>
+          {/* Show attachments for user messages */}
+          {isUser && message.attachments && message.attachments.length > 0 && (
+            <div className="mb-3 space-y-2">
+              {message.attachments.map((attachment, index) => (
+                <div key={index} className="flex items-center space-x-2 p-2 bg-white/20 rounded-md">
+                  <Paperclip className="w-4 h-4" />
+                  <FileText className="w-4 h-4" />
+                  <span className="text-sm">{attachment.filename}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          
           <div className={`text-sm ${isUser ? 'text-white' : 'text-gray-900'} prose prose-sm max-w-none ${isUser ? 'prose-invert' : ''}`}>
             <ReactMarkdown 
               remarkPlugins={[remarkGfm]}
