@@ -336,7 +336,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update thread title if this is the first user message
       const allMessages = await storage.getThreadMessages(threadId);
       if (allMessages.filter(m => m.role === "user").length === 1) {
-        const newTitle = await aiProviderInstance.generateThreadTitle(content);
+        // Use the successful provider (either primary or fallback) for title generation
+        const titleProvider = await getAIProvider(usedProvider);
+        const newTitle = await titleProvider.generateThreadTitle(content);
         await storage.updateChatThread(threadId, newTitle);
       }
 
