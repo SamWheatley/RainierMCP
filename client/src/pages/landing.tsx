@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, FolderOpen, Brain, Shield } from "lucide-react";
+import microscopeImage from "@assets/microscope_1755708356773.jpg";
 
 export default function Landing() {
   return (
@@ -12,7 +13,7 @@ export default function Landing() {
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
                 <img 
-                  src="/attached_assets/microscope_1755708356773.jpg" 
+                  src={microscopeImage} 
                   alt="Microscope" 
                   className="w-full h-full object-contain filter brightness-0 invert"
                 />
