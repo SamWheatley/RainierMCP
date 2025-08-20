@@ -312,9 +312,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...attachmentTexts
       ];
 
-      // Get AI provider and response
-      const aiProviderInstance = await getAIProvider(aiProvider as AIProviderType);
-      const aiResponse = await aiProviderInstance.askRanier(content, "", sources);
+      // Get AI response with automatic fallback
+      const { askWithFallback } = await import('./ai-providers');
+      const { response: aiResponse, usedProvider, usedFallback } = await askWithFallback(
+        aiProvider as AIProviderType, 
+        content, 
+        "", 
+        sources
+      );
+      
+      if (usedFallback) {
+        console.log(`Successfully used fallback provider: ${usedProvider} instead of ${aiProvider}`);
+      }
 
       // Save AI message
       const assistantMessage = await storage.createChatMessage({
