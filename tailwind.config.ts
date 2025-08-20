@@ -22,7 +22,7 @@ export default {
           foreground: "var(--popover-foreground)",
         },
         primary: {
-          DEFAULT: "hsl(210, 83%, 53%)", // #1976D2 from design
+          DEFAULT: "hsl(12, 68%, 57%)", // PANTONE 17-1230
           foreground: "var(--primary-foreground)",
         },
         secondary: {
@@ -52,7 +52,7 @@ export default {
           "5": "var(--chart-5)",
         },
         // Ranier-specific colors
-        'primary-dark': "hsl(210, 79%, 46%)", // #1565C0 from design
+        'primary-dark': "hsl(12, 64%, 50%)", // PANTONE 17-1230 dark variant
         'surface': "hsl(0, 0%, 100%)", // #FFFFFF
         'background-gray': "hsl(240, 4.8%, 95.9%)", // #FAFAFA equivalent
         'text-primary': "hsl(240, 10%, 13%)", // #212121 equivalent
