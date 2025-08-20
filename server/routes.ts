@@ -97,7 +97,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     try {
-      // Ensure demo user exists in database
+      const { uploadURL, originalName, mimeType, size } = schema.parse(req.body);
+      
+      // Ensure demo user exists in database FIRST
       if (userId === 'demo-user-id') {
         try {
           await storage.upsertUser({
@@ -106,11 +108,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastName: 'User',
             profileImageUrl: null,
           }, userId);
+          console.log("Demo user ensured in database");
         } catch (userError) {
-          console.warn("Failed to ensure demo user exists:", userError);
+          console.error("Failed to ensure demo user exists:", userError);
+          return res.status(500).json({ error: "Failed to create demo user" });
         }
       }
-      const { uploadURL, originalName, mimeType, size } = schema.parse(req.body);
       const objectStorageService = new ObjectStorageService();
       
       // Set ACL policy for private file
