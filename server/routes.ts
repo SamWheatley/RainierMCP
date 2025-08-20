@@ -289,6 +289,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to reprocess all user files
+  app.post("/api/admin/reprocess-all-files", isAuthenticated, async (req, res) => {
+    const userId = (req.user as any)?.claims?.sub;
+    
+    try {
+      const userFiles = await storage.getUserFiles(userId);
+      const unprocessedFiles = userFiles.filter(f => !f.isProcessed || !f.extractedText);
+      
+      console.log(`Reprocessing ${unprocessedFiles.length} files for user ${userId}`);
+      
+      const objectStorageService = new ObjectStorageService();
+      const results = [];
+      
+      for (const file of unprocessedFiles) {
+        try {
+          console.log(`Processing file: ${file.originalName}`);
+          
+          // Download file content
+          const fileContent = await objectStorageService.getObjectEntityFile(file.objectPath);
+          const chunks: Buffer[] = [];
+          const stream = fileContent.createReadStream();
+          
+          for await (const chunk of stream) {
+            chunks.push(chunk);
+          }
+          
+          const rawContent = Buffer.concat(chunks).toString('utf-8');
+          console.log(`File ${file.originalName} content length: ${rawContent.length}`);
+          
+          // Extract text using AI
+          const { extractTextFromDocument } = await import('./openai');
+          const extractedText = await extractTextFromDocument(rawContent, file.originalName);
+          console.log(`Extracted text length: ${extractedText.length}`);
+          
+          // Update file with extracted text
+          await storage.updateFileProcessingStatus(file.id, true, extractedText);
+          
+          results.push({
+            id: file.id,
+            name: file.originalName,
+            success: true,
+            extractedLength: extractedText.length
+          });
+          
+        } catch (error) {
+          console.error(`Error processing file ${file.originalName}:`, error);
+          results.push({
+            id: file.id,
+            name: file.originalName,
+            success: false,
+            error: error.message
+          });
+        }
+      }
+      
+      res.json({ results, processed: results.length });
+    } catch (error) {
+      console.error("Error reprocessing files:", error);
+      res.status(500).json({ error: "Failed to reprocess files" });
+    }
+  });
+
   app.post("/api/files/:fileId/reprocess", isAuthenticated, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     const { fileId } = req.params;
