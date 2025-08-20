@@ -214,13 +214,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's files for context
       const userFiles = await storage.getUserFiles(userId);
+      console.log(`Found ${userFiles.length} total files for user ${userId}`);
+      
       const processedFiles = userFiles.filter(f => f.isProcessed && f.extractedText);
+      console.log(`Found ${processedFiles.length} processed files with extracted text`);
+      
+      if (processedFiles.length > 0) {
+        console.log('Processed files:', processedFiles.map(f => ({
+          name: f.originalName,
+          isProcessed: f.isProcessed,
+          hasExtractedText: !!f.extractedText,
+          extractedTextLength: f.extractedText?.length || 0
+        })));
+      }
       
       // Prepare context for AI
       const sources = processedFiles.map(f => ({
         filename: f.originalName,
         content: f.extractedText || "",
       }));
+      
+      console.log(`Passing ${sources.length} sources to AI provider`);
 
       // Get AI provider and response
       const aiProviderInstance = await getAIProvider(aiProvider as AIProviderType);
