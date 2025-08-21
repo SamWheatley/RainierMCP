@@ -88,12 +88,12 @@ Return a JSON array of bias-related insights:
 [{
   "type": "bias",
   "title": "Brief bias concern",
-  "description": "Explanation of the bias and why it matters",
+  "description": "Explanation of the bias and why it matters for Come Near's research quality",
   "confidence": 0.75,
   "sources": ["specific examples or files"]
 }]
 
-Only include significant bias concerns. If no major biases found, return empty array.`;
+Look for subtle biases too - even minor concerns are valuable for improving research quality. If absolutely no biases found, return empty array.`;
 
     const biasResponse = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -108,6 +108,47 @@ Only include significant bias concerns. If no major biases found, return empty a
     const biasInsights = Array.isArray(biasData) ? biasData : (biasData.biases || biasData.insights || []);
     
     insights.push(...biasInsights.map((insight: any) => ({
+      ...insight,
+      userId,
+      sources: insight.sources || []
+    })));
+
+    // Pattern Recognition Analysis
+    const patternPrompt = `
+Analyze the following research data to identify behavioral patterns, trends, and recurring structures:
+1. Communication patterns and interaction styles
+2. Decision-making patterns and preferences  
+3. Behavioral trends across participants
+4. Recurring problem-solving approaches
+5. Patterns in motivations and values
+
+Research Data:
+${fileContent}
+
+Return a JSON array of pattern insights:
+[{
+  "type": "pattern",
+  "title": "Clear pattern name", 
+  "description": "Detailed explanation of the pattern and its significance for Come Near's work",
+  "confidence": 0.8,
+  "sources": ["specific data sources where pattern appears"]
+}]
+
+Focus on 2-4 most significant patterns that could inform strategy.`;
+
+    const patternResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: 'user', content: patternPrompt }],
+      response_format: { type: "json_object" },
+      max_tokens: 1200,
+      temperature: 0.3
+    });
+
+    const patternContent = patternResponse.choices[0].message.content || '[]';
+    const patternData = JSON.parse(patternContent);
+    const patternInsights = Array.isArray(patternData) ? patternData : (patternData.patterns || patternData.insights || []);
+    
+    insights.push(...patternInsights.map((insight: any) => ({
       ...insight,
       userId,
       sources: insight.sources || []
