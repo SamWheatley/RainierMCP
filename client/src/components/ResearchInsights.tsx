@@ -1,0 +1,247 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { RefreshCw, TrendingUp, AlertTriangle, Users, FileText, Brain, Lightbulb } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+
+interface ResearchInsight {
+  id: string;
+  type: 'theme' | 'bias' | 'pattern' | 'recommendation';
+  title: string;
+  description: string;
+  confidence: number;
+  sources: string[];
+  createdAt: string;
+}
+
+export default function ResearchInsights() {
+  const queryClient = useQueryClient();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Fetch existing insights
+  const { data: insightsData, isLoading } = useQuery<{ insights: ResearchInsight[] }>({
+    queryKey: ['/api/research-insights'],
+  });
+
+  const insights: ResearchInsight[] = insightsData?.insights || [];
+
+  // Generate new insights
+  const generateInsightsMutation = useMutation({
+    mutationFn: async () => {
+      setIsGenerating(true);
+      const response = await apiRequest('POST', '/api/research-insights/generate');
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/research-insights'] });
+      setIsGenerating(false);
+    },
+    onError: () => {
+      setIsGenerating(false);
+    },
+  });
+
+  const getInsightIcon = (type: string) => {
+    switch (type) {
+      case 'theme': return <TrendingUp className="w-5 h-5" />;
+      case 'bias': return <AlertTriangle className="w-5 h-5" />;
+      case 'pattern': return <Users className="w-5 h-5" />;
+      case 'recommendation': return <Lightbulb className="w-5 h-5" />;
+      default: return <Brain className="w-5 h-5" />;
+    }
+  };
+
+  const getInsightColor = (type: string) => {
+    switch (type) {
+      case 'theme': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'bias': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'pattern': return 'bg-green-100 text-green-800 border-green-200';
+      case 'recommendation': return 'bg-purple-100 text-purple-800 border-purple-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatConfidence = (confidence: number) => {
+    return `${Math.round(confidence * 100)}%`;
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center space-x-2">
+                <Brain className="w-6 h-6 text-primary" />
+                <span>Research Insights</span>
+              </CardTitle>
+              <CardDescription>
+                AI-powered analysis of your research data including theme detection, bias identification, and pattern recognition.
+              </CardDescription>
+            </div>
+            <Button 
+              onClick={() => generateInsightsMutation.mutate()}
+              disabled={isGenerating}
+              className="min-w-[140px]"
+            >
+              {isGenerating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4 mr-2" />
+                  Generate Insights
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Insights Display */}
+      {insights.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No insights yet</h3>
+            <p className="text-gray-600 mb-6">
+              Upload some research files and start conversations to generate insights.
+            </p>
+            <Button 
+              onClick={() => generateInsightsMutation.mutate()}
+              disabled={isGenerating}
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              Generate First Insights
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="themes">Themes</TabsTrigger>
+            <TabsTrigger value="bias">Bias</TabsTrigger>
+            <TabsTrigger value="patterns">Patterns</TabsTrigger>
+            <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="space-y-4">
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-4 pr-4">
+                {insights.map((insight) => (
+                  <Card key={insight.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
+                            {getInsightIcon(insight.type)}
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">{insight.title}</CardTitle>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Badge variant="outline" className={getInsightColor(insight.type)}>
+                                {insight.type}
+                              </Badge>
+                              <Badge variant="outline">
+                                {formatConfidence(insight.confidence)} confidence
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-gray-700 mb-4">{insight.description}</p>
+                      {insight.sources.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-600 mb-2">Sources:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {insight.sources.map((source, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {source}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Filtered tabs */}
+          {['themes', 'bias', 'patterns', 'recommendations'].map((filterType) => (
+            <TabsContent key={filterType} value={filterType} className="space-y-4">
+              <ScrollArea className="h-[600px]">
+                <div className="space-y-4 pr-4">
+                  {insights
+                    .filter((insight) => insight.type === filterType.slice(0, -1) || 
+                      (filterType === 'patterns' && insight.type === 'pattern') ||
+                      (filterType === 'recommendations' && insight.type === 'recommendation'))
+                    .map((insight) => (
+                      <Card key={insight.id} className="hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
+                                {getInsightIcon(insight.type)}
+                              </div>
+                              <div>
+                                <CardTitle className="text-lg">{insight.title}</CardTitle>
+                                <Badge variant="outline">
+                                  {formatConfidence(insight.confidence)} confidence
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-gray-700 mb-4">{insight.description}</p>
+                          {insight.sources.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 mb-2">Sources:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {insight.sources.map((source, index) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {source}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
+    </div>
+  );
+}

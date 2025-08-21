@@ -4,6 +4,7 @@ import {
   chatMessages,
   chatAttachments,
   uploadedFiles,
+  researchInsights,
   type User,
   type UpsertUser,
   type ChatThread,
@@ -14,6 +15,8 @@ import {
   type InsertChatAttachment,
   type UploadedFile,
   type InsertUploadedFile,
+  type ResearchInsight,
+  type InsertResearchInsight,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -45,6 +48,12 @@ export interface IStorage {
   updateFileProcessingStatus(id: string, isProcessed: boolean, extractedText?: string): Promise<void>;
   deleteUploadedFile(id: string, userId: string): Promise<void>;
   searchFilesByContent(userId: string, query: string): Promise<UploadedFile[]>;
+  getUploadedFilesByUser(userId: string): Promise<UploadedFile[]>;
+  getChatThreadsByUser(userId: string): Promise<ChatThread[]>;
+  
+  // Research Insights operations
+  createResearchInsight(insight: InsertResearchInsight): Promise<ResearchInsight>;
+  getResearchInsights(userId: string): Promise<ResearchInsight[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -193,6 +202,39 @@ export class DatabaseStorage implements IStorage {
         // Simple ILIKE search on extracted text and filename
       ))
       .orderBy(desc(uploadedFiles.createdAt));
+  }
+
+  async getUploadedFilesByUser(userId: string): Promise<UploadedFile[]> {
+    return await db
+      .select()
+      .from(uploadedFiles)
+      .where(eq(uploadedFiles.userId, userId))
+      .orderBy(desc(uploadedFiles.createdAt));
+  }
+
+  async getChatThreadsByUser(userId: string): Promise<ChatThread[]> {
+    return await db
+      .select()
+      .from(chatThreads)
+      .where(eq(chatThreads.userId, userId))
+      .orderBy(desc(chatThreads.updatedAt));
+  }
+
+  // Research Insights operations
+  async createResearchInsight(insight: InsertResearchInsight): Promise<ResearchInsight> {
+    const [created] = await db
+      .insert(researchInsights)
+      .values(insight)
+      .returning();
+    return created;
+  }
+
+  async getResearchInsights(userId: string): Promise<ResearchInsight[]> {
+    return await db
+      .select()
+      .from(researchInsights)
+      .where(eq(researchInsights.userId, userId))
+      .orderBy(desc(researchInsights.createdAt));
   }
 }
 

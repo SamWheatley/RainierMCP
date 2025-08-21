@@ -6,6 +6,155 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { getAIProvider, type AIProviderType } from "./ai-providers";
 import { z } from "zod";
+import type { UploadedFile, ChatThread, InsertResearchInsight } from "@shared/schema";
+
+// AI-powered research insights generation
+async function generateResearchInsights(
+  userId: string, 
+  files: UploadedFile[], 
+  threads: ChatThread[]
+): Promise<InsertResearchInsight[]> {
+  const insights: InsertResearchInsight[] = [];
+  
+  try {
+    const aiProvider = await getAIProvider('openai');
+    
+    // Prepare data for analysis
+    const fileContent = files.map(f => f.extractedText).filter(Boolean).join('\n\n');
+    const conversationData = threads.map(t => `Thread: ${t.title}`).join('\n');
+    
+    if (!fileContent && !conversationData) {
+      return insights;
+    }
+
+    // Theme Detection Analysis
+    const themePrompt = `
+Analyze the following research data and identify key themes, patterns, and insights. Focus on:
+1. Recurring topics and concepts
+2. Common user behaviors or pain points  
+3. Emerging trends or patterns
+4. Important insights that Come Near should know
+
+Research Data:
+${fileContent}
+
+${conversationData}
+
+Return a JSON array of theme insights with this format:
+[{
+  "type": "theme",
+  "title": "Brief theme name",
+  "description": "Detailed description of the theme and its significance",
+  "confidence": 0.85,
+  "sources": ["relevant file or conversation names"]
+}]
+
+Limit to 3-5 most significant themes.`;
+
+    const themeResponse = await aiProvider.generateChatCompletion([
+      { role: 'user', content: themePrompt }
+    ], { 
+      responseFormat: 'json',
+      maxTokens: 1500,
+      temperature: 0.3
+    });
+
+    const themeInsights = JSON.parse(themeResponse);
+    insights.push(...themeInsights.map((insight: any) => ({
+      ...insight,
+      userId,
+      sources: insight.sources || []
+    })));
+
+    // Bias Detection Analysis
+    const biasPrompt = `
+Analyze the following research data for potential biases, leading questions, or methodological concerns:
+1. Leading or loaded questions
+2. Sample bias or demographic gaps
+3. Confirmation bias in question framing
+4. Missing perspectives or voices
+
+Research Data:
+${fileContent}
+
+Return a JSON array of bias-related insights:
+[{
+  "type": "bias",
+  "title": "Brief bias concern",
+  "description": "Explanation of the bias and why it matters",
+  "confidence": 0.75,
+  "sources": ["specific examples or files"]
+}]
+
+Only include significant bias concerns. If no major biases found, return empty array.`;
+
+    const biasResponse = await aiProvider.generateChatCompletion([
+      { role: 'user', content: biasPrompt }
+    ], { 
+      responseFormat: 'json',
+      maxTokens: 1000,
+      temperature: 0.2
+    });
+
+    const biasInsights = JSON.parse(biasResponse);
+    insights.push(...biasInsights.map((insight: any) => ({
+      ...insight,
+      userId,
+      sources: insight.sources || []
+    })));
+
+    // Recommendation Generation
+    const recPrompt = `
+Based on the research analysis, provide actionable recommendations for Come Near's team:
+1. Research methodology improvements
+2. Product/service insights
+3. Strategic recommendations
+4. Next steps for further investigation
+
+Research Data Summary:
+${fileContent.substring(0, 2000)}...
+
+Return a JSON array of recommendations:
+[{
+  "type": "recommendation",
+  "title": "Actionable recommendation",
+  "description": "Detailed explanation and implementation guidance",
+  "confidence": 0.80,
+  "sources": ["supporting data sources"]
+}]
+
+Focus on 2-4 highest-impact recommendations.`;
+
+    const recResponse = await aiProvider.generateChatCompletion([
+      { role: 'user', content: recPrompt }
+    ], { 
+      responseFormat: 'json',
+      maxTokens: 1200,
+      temperature: 0.4
+    });
+
+    const recommendations = JSON.parse(recResponse);
+    insights.push(...recommendations.map((insight: any) => ({
+      ...insight,
+      userId,
+      sources: insight.sources || []
+    })));
+
+  } catch (error) {
+    console.error("Error in AI analysis:", error);
+    // Return fallback insights if AI fails
+    insights.push({
+      userId,
+      type: 'recommendation' as const,
+      title: 'Analysis Available',
+      description: `Found ${files.length} files and ${threads.length} conversations ready for detailed analysis. AI analysis temporarily unavailable - please try again.`,
+      confidence: 0.5,
+      sources: []
+    });
+  }
+
+  return insights;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -664,6 +813,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting file:", error);
       res.status(500).json({ error: "Failed to delete file" });
+    }
+  });
+
+  // Research Insights API routes
+  app.get('/api/research-insights', guestModeMiddleware, async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const insights = await storage.getResearchInsights(userId);
+      res.json({ insights });
+    } catch (error: any) {
+      console.error("Error fetching research insights:", error);
+      res.status(500).json({ error: "Failed to fetch research insights" });
+    }
+  });
+
+  app.post('/api/research-insights/generate', guestModeMiddleware, async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      
+      // Get user's files and conversations for analysis
+      const files = await storage.getUploadedFilesByUser(userId);
+      const threads = await storage.getChatThreadsByUser(userId);
+      
+      if (files.length === 0 && threads.length === 0) {
+        return res.status(400).json({ 
+          error: "No data available for analysis. Upload files or start conversations first." 
+        });
+      }
+
+      // Generate insights using AI analysis
+      const newInsights = await generateResearchInsights(userId, files, threads);
+      
+      // Store insights in database
+      for (const insight of newInsights) {
+        await storage.createResearchInsight(insight);
+      }
+
+      res.json({ 
+        message: "Research insights generated successfully", 
+        count: newInsights.length 
+      });
+    } catch (error: any) {
+      console.error("Error generating research insights:", error);
+      res.status(500).json({ error: "Failed to generate research insights" });
     }
   });
 

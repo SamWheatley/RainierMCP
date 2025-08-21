@@ -124,6 +124,22 @@ export const insertUploadedFileSchema = createInsertSchema(uploadedFiles).omit({
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// Research Insights table
+export const researchInsights = pgTable("research_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { enum: ["theme", "bias", "pattern", "recommendation"] }).notNull(),
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  confidence: real("confidence").notNull(),
+  sources: jsonb("sources").$type<string[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ResearchInsight = typeof researchInsights.$inferSelect;
+export type InsertResearchInsight = typeof researchInsights.$inferInsert;
 export type InsertChatThread = z.infer<typeof insertChatThreadSchema>;
 export type ChatThread = typeof chatThreads.$inferSelect;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
