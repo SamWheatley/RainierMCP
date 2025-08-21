@@ -77,9 +77,26 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
+    const claims = tokens.claims();
+    if (!claims) {
+      return verified(new Error('Authentication failed: No user claims available.'), false);
+    }
+    
+    const userEmail = claims["email"];
+    
+    // Check if email domain is allowed
+    const allowedDomains = ['@parallaxpartners.co', '@comenear.org'];
+    const isAllowedDomain = allowedDomains.some(domain => 
+      userEmail && typeof userEmail === 'string' && userEmail.toLowerCase().endsWith(domain.toLowerCase())
+    );
+    
+    if (!isAllowedDomain) {
+      return verified(new Error('Access restricted to Parallax Partners and Come Near organization members only.'), false);
+    }
+    
     const user = {};
     updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
+    await upsertUser(claims);
     verified(null, user);
   };
 
@@ -110,7 +127,7 @@ export async function setupAuth(app: Express) {
   app.get("/api/callback", (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
+      failureRedirect: "/api/login?error=access_denied",
     })(req, res, next);
   });
 
