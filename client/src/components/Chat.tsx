@@ -20,7 +20,7 @@ interface ChatProps {
 export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   const [message, setMessage] = useState("");
   const [showSources, setShowSources] = useState(true);
-  const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic'>('openai');
+  const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic' | 'grok'>('anthropic');
   const [internetAccess, setInternetAccess] = useState(false);
   const [showAttachmentDialog, setShowAttachmentDialog] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<any[]>([]);
@@ -146,13 +146,14 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
         <div className="mt-2 flex items-center space-x-4 flex-wrap gap-2">
           <div className="flex items-center space-x-2">
             <Brain className="w-4 h-4 text-gray-500" />
-            <Select value={aiProvider} onValueChange={(value) => setAiProvider(value as 'openai' | 'anthropic')}>
+            <Select value={aiProvider} onValueChange={(value) => setAiProvider(value as 'openai' | 'anthropic' | 'grok')}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="anthropic">Anthropic</SelectItem>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="grok">Grok</SelectItem>
               </SelectContent>
             </Select>
           </div>
