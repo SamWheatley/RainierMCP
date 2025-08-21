@@ -7,6 +7,7 @@ import { ObjectPermission } from "./objectAcl";
 import { getAIProvider, type AIProviderType } from "./ai-providers";
 import { z } from "zod";
 import type { UploadedFile, ChatThread, InsertResearchInsight } from "@shared/schema";
+import OpenAI from "openai";
 
 // AI-powered research insights generation
 async function generateResearchInsights(
@@ -17,7 +18,10 @@ async function generateResearchInsights(
   const insights: InsertResearchInsight[] = [];
   
   try {
-    const aiProvider = await getAIProvider('openai');
+    // Use OpenAI client directly for research insights
+    const openai = new OpenAI({ 
+      apiKey: process.env.OPENAI_API_KEY || ""
+    });
     
     // Prepare data for analysis
     const fileContent = files.map(f => f.extractedText).filter(Boolean).join('\n\n');
@@ -51,15 +55,15 @@ Return a JSON array of theme insights with this format:
 
 Limit to 3-5 most significant themes.`;
 
-    const themeResponse = await aiProvider.generateChatCompletion([
-      { role: 'user', content: themePrompt }
-    ], { 
-      responseFormat: 'json',
-      maxTokens: 1500,
+    const themeResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: 'user', content: themePrompt }],
+      response_format: { type: "json_object" },
+      max_tokens: 1500,
       temperature: 0.3
     });
 
-    const themeInsights = JSON.parse(themeResponse);
+    const themeInsights = JSON.parse(themeResponse.choices[0].message.content || '[]');
     insights.push(...themeInsights.map((insight: any) => ({
       ...insight,
       userId,
@@ -88,15 +92,15 @@ Return a JSON array of bias-related insights:
 
 Only include significant bias concerns. If no major biases found, return empty array.`;
 
-    const biasResponse = await aiProvider.generateChatCompletion([
-      { role: 'user', content: biasPrompt }
-    ], { 
-      responseFormat: 'json',
-      maxTokens: 1000,
+    const biasResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: 'user', content: biasPrompt }],
+      response_format: { type: "json_object" },
+      max_tokens: 1000,
       temperature: 0.2
     });
 
-    const biasInsights = JSON.parse(biasResponse);
+    const biasInsights = JSON.parse(biasResponse.choices[0].message.content || '[]');
     insights.push(...biasInsights.map((insight: any) => ({
       ...insight,
       userId,
@@ -125,15 +129,15 @@ Return a JSON array of recommendations:
 
 Focus on 2-4 highest-impact recommendations.`;
 
-    const recResponse = await aiProvider.generateChatCompletion([
-      { role: 'user', content: recPrompt }
-    ], { 
-      responseFormat: 'json',
-      maxTokens: 1200,
+    const recResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: 'user', content: recPrompt }],
+      response_format: { type: "json_object" },
+      max_tokens: 1200,
       temperature: 0.4
     });
 
-    const recommendations = JSON.parse(recResponse);
+    const recommendations = JSON.parse(recResponse.choices[0].message.content || '[]');
     insights.push(...recommendations.map((insight: any) => ({
       ...insight,
       userId,
