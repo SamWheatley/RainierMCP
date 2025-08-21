@@ -1,14 +1,22 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ 
-  baseURL: "https://api.x.ai/v1", 
-  apiKey: process.env.XAI_API_KEY 
-});
+// Initialize OpenAI client for Grok with fresh environment variable
+const getGrokClient = () => {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("XAI_API_KEY environment variable is not set");
+  }
+  return new OpenAI({ 
+    baseURL: "https://api.x.ai/v1", 
+    apiKey: apiKey
+  });
+};
 
 // article summarization example
 export async function summarizeArticle(text: string): Promise<string> {
   const prompt = `Please summarize the following text concisely while maintaining key points:\n\n${text}`;
 
+  const openai = getGrokClient();
   const response = await openai.chat.completions.create({
     model: "grok-2-1212",
     messages: [{ role: "user", content: prompt }],
@@ -23,7 +31,8 @@ export async function analyzeSentiment(text: string): Promise<{
   confidence: number
 }> {
   try {
-    const response = await openai.chat.completions.create({
+    const openai = getGrokClient();
+  const response = await openai.chat.completions.create({
       model: "grok-2-1212",
       messages: [
         {
@@ -53,7 +62,8 @@ export async function analyzeSentiment(text: string): Promise<{
 // Research insights analysis for Ranier
 export async function generateResearchInsights(prompt: string): Promise<any[]> {
   try {
-    const response = await openai.chat.completions.create({
+    const openai = getGrokClient();
+  const response = await openai.chat.completions.create({
       model: "grok-2-1212",
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: "json_object" },
@@ -173,7 +183,8 @@ export async function askRanier(
         ).join('\n')}\n\nUser context: ${context}`
       : `User context: ${context}`;
 
-    const response = await openai.chat.completions.create({
+    const openai = getGrokClient();
+  const response = await openai.chat.completions.create({
       model: "grok-2-1212",
       messages: [
         {
@@ -204,7 +215,8 @@ export async function askRanier(
 
 export async function extractTextFromDocument(content: string, filename: string): Promise<string> {
   try {
-    const response = await openai.chat.completions.create({
+    const openai = getGrokClient();
+  const response = await openai.chat.completions.create({
       model: "grok-2-1212",
       messages: [
         {
@@ -230,7 +242,8 @@ export async function extractTextFromDocument(content: string, filename: string)
 
 export async function generateThreadTitle(firstMessage: string): Promise<string> {
   try {
-    const response = await openai.chat.completions.create({
+    const openai = getGrokClient();
+  const response = await openai.chat.completions.create({
       model: "grok-2-1212",
       messages: [
         {
