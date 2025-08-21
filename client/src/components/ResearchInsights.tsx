@@ -28,7 +28,7 @@ export default function ResearchInsights() {
   const [editingInsight, setEditingInsight] = useState<{ id: string; title: string } | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [datasetFilter, setDatasetFilter] = useState<'all' | 'segment7' | 'personal'>('all');
-  const [selectedModel, setSelectedModel] = useState<'openai' | 'anthropic' | 'grok'>('openai');
+  const [selectedModel, setSelectedModel] = useState<'openai' | 'anthropic' | 'grok'>('anthropic');
 
   // Fetch existing insights
   const { data: insightsData, isLoading } = useQuery<{ insights: ResearchInsight[] }>({
@@ -163,8 +163,8 @@ export default function ResearchInsights() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="openai">OpenAI</SelectItem>
                   <SelectItem value="anthropic">Anthropic</SelectItem>
+                  <SelectItem value="openai">OpenAI</SelectItem>
                   <SelectItem value="grok">Grok</SelectItem>
                 </SelectContent>
               </Select>
