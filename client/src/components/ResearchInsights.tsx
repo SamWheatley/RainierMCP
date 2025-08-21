@@ -279,9 +279,15 @@ export default function ResearchInsights() {
               <ScrollArea className="h-[600px]">
                 <div className="space-y-4 pr-4">
                   {insights
-                    .filter((insight) => insight.type === filterType.slice(0, -1) || 
-                      (filterType === 'patterns' && insight.type === 'pattern') ||
-                      (filterType === 'recommendations' && insight.type === 'recommendation'))
+                    .filter((insight) => {
+                      switch (filterType) {
+                        case 'themes': return insight.type === 'theme';
+                        case 'bias': return insight.type === 'bias';
+                        case 'patterns': return insight.type === 'pattern';
+                        case 'recommendations': return insight.type === 'recommendation';
+                        default: return false;
+                      }
+                    })
                     .map((insight) => (
                       <Card key={insight.id} className="hover:shadow-md transition-shadow">
                         <CardHeader className="pb-3">
