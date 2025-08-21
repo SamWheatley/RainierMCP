@@ -170,64 +170,60 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
       ) : (
         <div className="space-y-8">
           {/* Segment 7 Section */}
-          {filteredSharedFiles.length > 0 && (
-            <div>
-              <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Segment 7</h2>
-                <p className="text-gray-600">Research data and documents for the Segment 7 initiative</p>
-                <div className="mt-4 text-sm text-gray-500">
-                  {filteredSharedFiles.length} file{filteredSharedFiles.length !== 1 ? 's' : ''} • Shared across all users
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredSharedFiles.map((file) => (
-                  <FileCard 
-                    key={file.id} 
-                    file={file} 
-                    onAskQuestions={() => onAskAboutFile(file)}
-                  />
-                ))}
+          <div>
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Segment 7</h2>
+              <p className="text-gray-600">Research data and documents for the Segment 7 initiative</p>
+              <div className="mt-4 text-sm text-gray-500">
+                {filteredSharedFiles.length} file{filteredSharedFiles.length !== 1 ? 's' : ''} • Shared across all users
               </div>
             </div>
-          )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredSharedFiles.map((file) => (
+                <FileCard 
+                  key={file.id} 
+                  file={file} 
+                  onAskQuestions={() => onAskAboutFile(file)}
+                />
+              ))}
+            </div>
+          </div>
 
           {/* Personal Data Section */}
-          {filteredPersonalFiles.length > 0 && (
-            <div>
-              <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Personal Data</h2>
-                <p className="text-gray-600">Your private research files and documents</p>
-                <div className="mt-4 text-sm text-gray-500">
-                  {filteredPersonalFiles.length} file{filteredPersonalFiles.length !== 1 ? 's' : ''} • Private to your account
-                </div>
+          <div>
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Personal Data</h2>
+              <p className="text-gray-600">Your private research files and documents</p>
+              <div className="mt-4 text-sm text-gray-500">
+                {filteredPersonalFiles.length} file{filteredPersonalFiles.length !== 1 ? 's' : ''} • Private to your account
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredPersonalFiles.map((file) => (
-                  <FileCard 
-                    key={file.id} 
-                    file={file} 
-                    onAskQuestions={() => onAskAboutFile(file)}
-                  />
-                ))}
-                
-                {/* Add New File Card only in Personal Data section */}
-                <div 
-                  onClick={() => setShowUpload(true)}
-                  className="bg-white rounded-xl shadow-lg border-2 border-dashed border-gray-300 hover:border-primary transition-colors duration-200 cursor-pointer"
-                >
-                  <div className="p-6 h-full flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                      <Upload className="w-6 h-6 text-gray-500" />
-                    </div>
-                    <h3 className="font-semibold text-gray-900 text-sm mb-2">Upload New File</h3>
-                    <p className="text-xs text-gray-600">
-                      Add transcripts, documents, or videos to analyze
-                    </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredPersonalFiles.map((file) => (
+                <FileCard 
+                  key={file.id} 
+                  file={file} 
+                  onAskQuestions={() => onAskAboutFile(file)}
+                />
+              ))}
+              
+              {/* Add New File Card in Personal Data section */}
+              <div 
+                onClick={() => setShowUpload(true)}
+                className="bg-white rounded-xl shadow-lg border-2 border-dashed border-gray-300 hover:border-primary transition-colors duration-200 cursor-pointer"
+              >
+                <div className="p-6 h-full flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                    <Upload className="w-6 h-6 text-gray-500" />
                   </div>
+                  <h3 className="font-semibold text-gray-900 text-sm mb-2">Upload New File</h3>
+                  <p className="text-xs text-gray-600">
+                    Add transcripts, documents, or videos to analyze
+                  </p>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

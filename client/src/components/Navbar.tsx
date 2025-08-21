@@ -58,7 +58,7 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
               onClick={() => onTabChange('explore')}
             >
               <FolderOpen className="w-4 h-4 mr-2" />
-              Data
+              Archive
             </Button>
             <Button
               variant={activeTab === 'insights' ? 'default' : 'ghost'}
