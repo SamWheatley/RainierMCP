@@ -108,14 +108,53 @@ Response format: Always respond in JSON with this structure:
   ]
 }`;
 
-function truncateSources(sources: Array<{ filename: string; content: string }>, maxTotal: number = 15000): Array<{ filename: string; content: string }> {
-  if (!sources.length) return sources;
+// Helper function to estimate token count (rough approximation)
+function estimateTokenCount(text: string): number {
+  // Rough approximation: 1 token ≈ 4 characters for English text
+  return Math.ceil(text.length / 4);
+}
+
+// Helper function to truncate sources to fit token limits
+function truncateSources(
+  sources: Array<{ filename: string; content: string }>,
+  maxTokens: number = 30000 // Grok has large context window, use generous limit
+): Array<{ filename: string; content: string }> {
+  const truncatedSources: Array<{ filename: string; content: string }> = [];
+  let currentTokens = 0;
   
-  const maxPerSource = Math.floor(maxTotal / sources.length);
-  return sources.map(source => ({
-    filename: source.filename,
-    content: source.content.slice(0, maxPerSource)
-  }));
+  for (const source of sources) {
+    const sourceHeader = `=== ${source.filename} ===\n`;
+    const headerTokens = estimateTokenCount(sourceHeader);
+    
+    // If adding this source would exceed limits, truncate its content
+    const availableTokens = maxTokens - currentTokens - headerTokens;
+    
+    if (availableTokens <= 100) {
+      // Not enough space for meaningful content
+      break;
+    }
+    
+    const maxContentChars = availableTokens * 4; // Convert back to characters
+    const truncatedContent = source.content.length > maxContentChars
+      ? source.content.slice(0, maxContentChars) + "\n\n[Content truncated due to length...]"
+      : source.content;
+    
+    const contentTokens = estimateTokenCount(truncatedContent);
+    
+    truncatedSources.push({
+      filename: source.filename,
+      content: truncatedContent
+    });
+    
+    currentTokens += headerTokens + contentTokens;
+    
+    // If we're close to the limit, stop adding sources
+    if (currentTokens > maxTokens * 0.9) {
+      break;
+    }
+  }
+  
+  return truncatedSources;
 }
 
 export async function askRanier(
@@ -148,7 +187,7 @@ export async function askRanier(
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
