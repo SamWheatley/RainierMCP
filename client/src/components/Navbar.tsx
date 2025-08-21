@@ -83,7 +83,7 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
               <Avatar className="w-8 h-8">
                 <AvatarImage src={user?.profileImageUrl || ""} />
                 <AvatarFallback className="bg-primary text-white text-sm">
-                  {getInitials(user?.firstName, user?.lastName)}
+                  {getInitials(user?.firstName || undefined, user?.lastName || undefined)}
                 </AvatarFallback>
               </Avatar>
               <span className="hidden md:block text-sm font-medium text-gray-900">

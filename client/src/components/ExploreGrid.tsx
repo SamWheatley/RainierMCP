@@ -109,6 +109,12 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
         />
       )}
 
+      {/* Segment 7 Heading */}
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Segment 7</h2>
+        <p className="text-gray-600">Research data and documents for the Segment 7 initiative</p>
+      </div>
+
       {/* Content Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
