@@ -193,7 +193,9 @@ export default function ResearchInsights() {
           <TabsContent value="all" className="space-y-4">
             <ScrollArea className="h-[600px]">
               <div className="space-y-4 pr-4">
-                {insights.map((insight) => (
+                {insights
+                  .sort((a, b) => b.confidence - a.confidence)
+                  .map((insight) => (
                   <Card key={insight.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
@@ -288,6 +290,7 @@ export default function ResearchInsights() {
                         default: return false;
                       }
                     })
+                    .sort((a, b) => b.confidence - a.confidence)
                     .map((insight) => (
                       <Card key={insight.id} className="hover:shadow-md transition-shadow">
                         <CardHeader className="pb-3">
