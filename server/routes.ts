@@ -874,6 +874,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/research-insights/:id', guestModeMiddleware, async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const { id } = req.params;
+      const { title } = req.body;
+
+      if (!title || typeof title !== 'string') {
+        return res.status(400).json({ error: "Title is required" });
+      }
+
+      await storage.updateResearchInsight(id, userId, title.trim());
+      res.json({ message: "Research insight updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating research insight:", error);
+      res.status(500).json({ error: "Failed to update research insight" });
+    }
+  });
+
+  app.delete('/api/research-insights/:id', guestModeMiddleware, async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const { id } = req.params;
+
+      await storage.deleteResearchInsight(id, userId);
+      res.json({ message: "Research insight deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting research insight:", error);
+      res.status(500).json({ error: "Failed to delete research insight" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

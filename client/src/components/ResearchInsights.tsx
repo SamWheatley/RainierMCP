@@ -5,7 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { RefreshCw, TrendingUp, AlertTriangle, Users, FileText, Brain, Lightbulb } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { RefreshCw, TrendingUp, AlertTriangle, Users, FileText, Brain, Lightbulb, MoreVertical, Edit2, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ResearchInsight {
@@ -21,6 +24,8 @@ interface ResearchInsight {
 export default function ResearchInsights() {
   const queryClient = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [editingInsight, setEditingInsight] = useState<{ id: string; title: string } | null>(null);
+  const [newTitle, setNewTitle] = useState("");
 
   // Fetch existing insights
   const { data: insightsData, isLoading } = useQuery<{ insights: ResearchInsight[] }>({
@@ -44,6 +49,44 @@ export default function ResearchInsights() {
       setIsGenerating(false);
     },
   });
+
+  // Delete insight mutation
+  const deleteInsightMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/research-insights/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/research-insights'] });
+    },
+  });
+
+  // Update insight title mutation  
+  const updateInsightMutation = useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      await apiRequest('PUT', `/api/research-insights/${id}`, { title });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/research-insights'] });
+      setEditingInsight(null);
+      setNewTitle("");
+    },
+  });
+
+  const handleStartEdit = (insight: ResearchInsight) => {
+    setEditingInsight({ id: insight.id, title: insight.title });
+    setNewTitle(insight.title);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingInsight && newTitle.trim()) {
+      updateInsightMutation.mutate({ id: editingInsight.id, title: newTitle.trim() });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingInsight(null);
+    setNewTitle("");
+  };
 
   const getInsightIcon = (type: string) => {
     switch (type) {
@@ -159,7 +202,24 @@ export default function ResearchInsights() {
                             {getInsightIcon(insight.type)}
                           </div>
                           <div>
-                            <CardTitle className="text-lg">{insight.title}</CardTitle>
+                            {editingInsight?.id === insight.id ? (
+                              <div className="flex items-center space-x-2">
+                                <Input
+                                  value={newTitle}
+                                  onChange={(e) => setNewTitle(e.target.value)}
+                                  className="text-lg font-semibold"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveEdit();
+                                    if (e.key === 'Escape') handleCancelEdit();
+                                  }}
+                                  autoFocus
+                                />
+                                <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                                <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                              </div>
+                            ) : (
+                              <CardTitle className="text-lg">{insight.title}</CardTitle>
+                            )}
                             <div className="flex items-center space-x-2 mt-1">
                               <Badge variant="outline" className={getInsightColor(insight.type)}>
                                 {insight.type}
@@ -170,6 +230,26 @@ export default function ResearchInsights() {
                             </div>
                           </div>
                         </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleStartEdit(insight)}>
+                              <Edit2 className="w-4 h-4 mr-2" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => deleteInsightMutation.mutate(insight.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -211,12 +291,49 @@ export default function ResearchInsights() {
                                 {getInsightIcon(insight.type)}
                               </div>
                               <div>
-                                <CardTitle className="text-lg">{insight.title}</CardTitle>
+                                {editingInsight?.id === insight.id ? (
+                                  <div className="flex items-center space-x-2">
+                                    <Input
+                                      value={newTitle}
+                                      onChange={(e) => setNewTitle(e.target.value)}
+                                      className="text-lg font-semibold"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveEdit();
+                                        if (e.key === 'Escape') handleCancelEdit();
+                                      }}
+                                      autoFocus
+                                    />
+                                    <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                                    <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                                  </div>
+                                ) : (
+                                  <CardTitle className="text-lg">{insight.title}</CardTitle>
+                                )}
                                 <Badge variant="outline">
                                   {formatConfidence(insight.confidence)} confidence
                                 </Badge>
                               </div>
                             </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleStartEdit(insight)}>
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => deleteInsightMutation.mutate(insight.id)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </CardHeader>
                         <CardContent>

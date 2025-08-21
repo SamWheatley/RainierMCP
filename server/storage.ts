@@ -54,6 +54,8 @@ export interface IStorage {
   // Research Insights operations
   createResearchInsight(insight: InsertResearchInsight): Promise<ResearchInsight>;
   getResearchInsights(userId: string): Promise<ResearchInsight[]>;
+  updateResearchInsight(id: string, userId: string, title: string): Promise<void>;
+  deleteResearchInsight(id: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -235,6 +237,28 @@ export class DatabaseStorage implements IStorage {
       .from(researchInsights)
       .where(eq(researchInsights.userId, userId))
       .orderBy(desc(researchInsights.createdAt));
+  }
+
+  async updateResearchInsight(id: string, userId: string, title: string): Promise<void> {
+    await db
+      .update(researchInsights)
+      .set({ 
+        title, 
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(researchInsights.id, id), 
+        eq(researchInsights.userId, userId)
+      ));
+  }
+
+  async deleteResearchInsight(id: string, userId: string): Promise<void> {
+    await db
+      .delete(researchInsights)
+      .where(and(
+        eq(researchInsights.id, id), 
+        eq(researchInsights.userId, userId)
+      ));
   }
 }
 
