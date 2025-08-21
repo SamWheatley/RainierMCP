@@ -63,7 +63,10 @@ Limit to 3-5 most significant themes.`;
       temperature: 0.3
     });
 
-    const themeInsights = JSON.parse(themeResponse.choices[0].message.content || '[]');
+    const themeContent = themeResponse.choices[0].message.content || '[]';
+    const themeData = JSON.parse(themeContent);
+    const themeInsights = Array.isArray(themeData) ? themeData : (themeData.themes || themeData.insights || []);
+    
     insights.push(...themeInsights.map((insight: any) => ({
       ...insight,
       userId,
@@ -100,7 +103,10 @@ Only include significant bias concerns. If no major biases found, return empty a
       temperature: 0.2
     });
 
-    const biasInsights = JSON.parse(biasResponse.choices[0].message.content || '[]');
+    const biasContent = biasResponse.choices[0].message.content || '[]';
+    const biasData = JSON.parse(biasContent);
+    const biasInsights = Array.isArray(biasData) ? biasData : (biasData.biases || biasData.insights || []);
+    
     insights.push(...biasInsights.map((insight: any) => ({
       ...insight,
       userId,
@@ -137,7 +143,10 @@ Focus on 2-4 highest-impact recommendations.`;
       temperature: 0.4
     });
 
-    const recommendations = JSON.parse(recResponse.choices[0].message.content || '[]');
+    const recContent = recResponse.choices[0].message.content || '[]';
+    const recData = JSON.parse(recContent);
+    const recommendations = Array.isArray(recData) ? recData : (recData.recommendations || recData.insights || []);
+    
     insights.push(...recommendations.map((insight: any) => ({
       ...insight,
       userId,
@@ -146,6 +155,7 @@ Focus on 2-4 highest-impact recommendations.`;
 
   } catch (error) {
     console.error("Error in AI analysis:", error);
+    console.error("Error details:", error instanceof Error ? error.message : error);
     // Return fallback insights if AI fails
     insights.push({
       userId,
