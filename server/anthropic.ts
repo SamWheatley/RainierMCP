@@ -91,7 +91,13 @@ export async function askRanier(
     });
 
     const content = response.content[0];
-    const textContent = content.type === 'text' ? content.text : "{}";
+    let textContent = content.type === 'text' ? content.text : "{}";
+    
+    // Clean up markdown formatting if present
+    if (textContent.includes('```json')) {
+      textContent = textContent.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    }
+    
     const result = JSON.parse(textContent);
     
     return {
