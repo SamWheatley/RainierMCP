@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Uppy styles for file uploader */
+@import url('https://releases.transloadit.com/uppy/v3.25.6/uppy.min.css');
+
 :root {
   --background: hsl(0 0% 100%);
   --foreground: hsl(240 10% 3.9%);
@@ -132,9 +135,6 @@
     overflow: hidden;
   }
 }
-
-/* Uppy styles for file uploader */
-@import url('https://releases.transloadit.com/uppy/v3.25.6/uppy.min.css');
 
 .uppy-Dashboard--modal {
   z-index: 9999;
