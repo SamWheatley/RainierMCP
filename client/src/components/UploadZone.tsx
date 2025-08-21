@@ -4,6 +4,7 @@ import { ObjectUploader } from "./ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, CloudUpload } from "lucide-react";
 import type { UploadResult } from "@uppy/core";
 
@@ -14,6 +15,7 @@ interface UploadZoneProps {
 
 export default function UploadZone({ onComplete, onClose }: UploadZoneProps) {
   const { toast } = useToast();
+  const [destination, setDestination] = useState<'personal' | 'segment7'>('personal');
   
   const processFileMutation = useMutation({
     mutationFn: async (fileData: {
@@ -21,6 +23,7 @@ export default function UploadZone({ onComplete, onClose }: UploadZoneProps) {
       originalName: string;
       mimeType: string;
       size: number;
+      destination: 'personal' | 'segment7';
     }) => {
       const response = await apiRequest('POST', '/api/files/process', fileData);
       return response.json();
@@ -60,6 +63,7 @@ export default function UploadZone({ onComplete, onClose }: UploadZoneProps) {
         originalName: upload.name,
         mimeType: upload.type || 'application/octet-stream',
         size: upload.size || 0,
+        destination,
       });
     }
   };
@@ -80,9 +84,26 @@ export default function UploadZone({ onComplete, onClose }: UploadZoneProps) {
         <h4 className="text-lg font-semibold text-gray-900 mb-2">Upload Research Files</h4>
         <p className="text-gray-600 mb-4">Drag and drop your transcripts, documents, or videos here</p>
         
-        <div className="space-y-2 text-sm text-gray-600 mb-6">
-          <p>Supported formats: PDF, TXT, DOCX, MP4, MP3, WAV</p>
-          <p>Maximum file size: 100MB</p>
+        <div className="space-y-4 mb-6">
+          <div className="max-w-xs mx-auto">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload to:
+            </label>
+            <Select value={destination} onValueChange={(value: 'personal' | 'segment7') => setDestination(value)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="personal">Personal Data</SelectItem>
+                <SelectItem value="segment7">Segment 7</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2 text-sm text-gray-600">
+            <p>Supported formats: PDF, TXT, DOCX, MP4, MP3, WAV</p>
+            <p>Maximum file size: 100MB</p>
+          </div>
         </div>
         
         <ObjectUploader

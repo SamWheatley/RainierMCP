@@ -311,10 +311,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       originalName: z.string(),
       mimeType: z.string(),
       size: z.number(),
+      destination: z.enum(['personal', 'segment7']).optional(),
     });
 
     try {
-      const { uploadURL, originalName, mimeType, size } = schema.parse(req.body);
+      const { uploadURL, originalName, mimeType, size, destination } = schema.parse(req.body);
       
       console.log(`Processing file upload for user: ${userId}`);
       
@@ -353,9 +354,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Determine if this is a Segment 7 file that should be shared
-      const isSegment7 = originalName.toLowerCase().includes('segment 7') || 
-                        originalName.toLowerCase().includes('segment_7') ||
-                        originalName.toLowerCase().includes('segment-7');
+      // Use destination from user selection, or fallback to filename detection
+      const isSegment7 = destination === 'segment7' || 
+                        (destination === undefined && (
+                          originalName.toLowerCase().includes('segment 7') || 
+                          originalName.toLowerCase().includes('segment_7') ||
+                          originalName.toLowerCase().includes('segment-7')
+                        ));
 
       // Create file record in database
       const file = await storage.createUploadedFile({
