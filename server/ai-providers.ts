@@ -104,13 +104,15 @@ export async function askWithFallback(
   } catch (primaryError) {
     console.log(`Primary provider ${primaryProvider} failed:`, primaryError);
     
-    // Check if it's a token/rate limit error that might work better with fallback
+    // Check if it's a token/rate limit error OR API key error that should trigger fallback
     const shouldFallback = primaryError instanceof Error && (
       primaryError.message.includes('token') ||
       primaryError.message.includes('rate_limit') ||
       primaryError.message.includes('429') ||
       primaryError.message.includes('too large') ||
-      primaryError.message.includes('Request too large')
+      primaryError.message.includes('Request too large') ||
+      primaryError.message.includes('API key') ||
+      primaryError.message.includes('Failed to get response from Ranier AI')
     );
     
     if (shouldFallback) {
