@@ -56,15 +56,18 @@ export default function UploadZone({ onComplete, onClose }: UploadZoneProps) {
   const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     const successfulUploads = result.successful;
     
-    if (successfulUploads.length > 0) {
+    if (successfulUploads && successfulUploads.length > 0) {
       const upload = successfulUploads[0];
-      processFileMutation.mutate({
-        uploadURL: upload.uploadURL || '',
-        originalName: upload.name,
-        mimeType: upload.type || 'application/octet-stream',
-        size: upload.size || 0,
-        destination,
-      });
+      const uploadURL = upload.uploadURL;
+      if (uploadURL && typeof uploadURL === 'string') {
+        processFileMutation.mutate({
+          uploadURL,
+          originalName: upload.name,
+          mimeType: upload.type || 'application/octet-stream',
+          size: upload.size || 0,
+          destination,
+        });
+      }
     }
   };
 

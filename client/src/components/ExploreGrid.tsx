@@ -21,7 +21,7 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
   
   const queryClient = useQueryClient();
 
-  const { data: filesData, isLoading } = useQuery({
+  const { data: filesData, isLoading } = useQuery<{ files: UploadedFile[] }>({
     queryKey: ['/api/files'],
   });
 
