@@ -13,15 +13,41 @@ import OpenAI from "openai";
 async function generateResearchInsights(
   userId: string, 
   files: UploadedFile[], 
-  threads: ChatThread[]
+  threads: ChatThread[],
+  model: string = 'openai'
 ): Promise<InsertResearchInsight[]> {
   const insights: InsertResearchInsight[] = [];
   
   try {
-    // Use OpenAI client directly for research insights
-    const openai = new OpenAI({ 
-      apiKey: process.env.OPENAI_API_KEY || ""
-    });
+    // Helper function to make AI requests based on selected model
+    const makeAIRequest = async (prompt: string, maxTokens: number = 1500, temperature: number = 0.3) => {
+      if (model === 'grok') {
+        const { generateResearchInsights: grokGenerate } = await import('./grok');
+        return await grokGenerate(prompt);
+      } else if (model === 'anthropic') {
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }],
+          temperature
+        });
+        return JSON.parse((response.content[0] as any).text || '[]');
+      } else {
+        // Default to OpenAI
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: "json_object" },
+          max_tokens: maxTokens,
+          temperature
+        });
+        const content = response.choices[0].message.content || '[]';
+        return JSON.parse(content);
+      }
+    };
     
     // Prepare data for analysis
     const fileContent = files.map(f => f.extractedText).filter(Boolean).join('\n\n');
@@ -55,16 +81,7 @@ Return a JSON array of theme insights with this format:
 
 Limit to 3-5 most significant themes.`;
 
-    const themeResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: 'user', content: themePrompt }],
-      response_format: { type: "json_object" },
-      max_tokens: 1500,
-      temperature: 0.3
-    });
-
-    const themeContent = themeResponse.choices[0].message.content || '[]';
-    const themeData = JSON.parse(themeContent);
+    const themeData = await makeAIRequest(themePrompt, 1500, 0.3);
     const themeInsights = Array.isArray(themeData) ? themeData : (themeData.themes || themeData.insights || []);
     
     insights.push(...themeInsights.map((insight: any) => ({
@@ -95,16 +112,7 @@ Return a JSON array of bias-related insights:
 
 Look for subtle biases too - even minor concerns are valuable for improving research quality. If absolutely no biases found, return empty array.`;
 
-    const biasResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: 'user', content: biasPrompt }],
-      response_format: { type: "json_object" },
-      max_tokens: 1000,
-      temperature: 0.2
-    });
-
-    const biasContent = biasResponse.choices[0].message.content || '[]';
-    const biasData = JSON.parse(biasContent);
+    const biasData = await makeAIRequest(biasPrompt, 1000, 0.2);
     const biasInsights = Array.isArray(biasData) ? biasData : (biasData.biases || biasData.insights || []);
     
     insights.push(...biasInsights.map((insight: any) => ({
@@ -136,16 +144,7 @@ Return a JSON array of pattern insights:
 
 Focus on 2-4 most significant patterns that could inform strategy.`;
 
-    const patternResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: 'user', content: patternPrompt }],
-      response_format: { type: "json_object" },
-      max_tokens: 1200,
-      temperature: 0.3
-    });
-
-    const patternContent = patternResponse.choices[0].message.content || '[]';
-    const patternData = JSON.parse(patternContent);
+    const patternData = await makeAIRequest(patternPrompt, 1200, 0.3);
     const patternInsights = Array.isArray(patternData) ? patternData : (patternData.patterns || patternData.insights || []);
     
     insights.push(...patternInsights.map((insight: any) => ({
@@ -176,16 +175,7 @@ Return a JSON array of recommendations:
 
 Focus on 2-4 highest-impact recommendations.`;
 
-    const recResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: 'user', content: recPrompt }],
-      response_format: { type: "json_object" },
-      max_tokens: 1200,
-      temperature: 0.4
-    });
-
-    const recContent = recResponse.choices[0].message.content || '[]';
-    const recData = JSON.parse(recContent);
+    const recData = await makeAIRequest(recPrompt, 1200, 0.4);
     const recommendations = Array.isArray(recData) ? recData : (recData.recommendations || recData.insights || []);
     
     insights.push(...recommendations.map((insight: any) => ({
@@ -519,7 +509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { threadId } = req.params;
     const schema = z.object({
       content: z.string(),
-      aiProvider: z.enum(['openai', 'anthropic']).optional().default('openai'),
+      aiProvider: z.enum(['openai', 'anthropic', 'grok']).optional().default('openai'),
       internetAccess: z.boolean().optional().default(false),
       attachments: z.array(z.object({
         uploadURL: z.string(),
@@ -897,7 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/research-insights/generate', guestModeMiddleware, async (req: any, res) => {
     try {
       const userId = (req.user as any)?.claims?.sub;
-      const { dataset = 'all' } = req.body;
+      const { dataset = 'all', model = 'openai' } = req.body;
       
       // Get user's files and conversations for analysis
       let files = await storage.getUploadedFilesByUser(userId);
@@ -920,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate insights using AI analysis
-      const newInsights = await generateResearchInsights(userId, files, threads);
+      const newInsights = await generateResearchInsights(userId, files, threads, model);
       
       // Store insights in database
       for (const insight of newInsights) {

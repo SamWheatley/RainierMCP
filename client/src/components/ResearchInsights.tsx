@@ -28,6 +28,7 @@ export default function ResearchInsights() {
   const [editingInsight, setEditingInsight] = useState<{ id: string; title: string } | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [datasetFilter, setDatasetFilter] = useState<'all' | 'segment7' | 'personal'>('all');
+  const [selectedModel, setSelectedModel] = useState<'openai' | 'anthropic' | 'grok'>('openai');
 
   // Fetch existing insights
   const { data: insightsData, isLoading } = useQuery<{ insights: ResearchInsight[] }>({
@@ -41,7 +42,8 @@ export default function ResearchInsights() {
     mutationFn: async () => {
       setIsGenerating(true);
       const response = await apiRequest('POST', '/api/research-insights/generate', {
-        dataset: datasetFilter
+        dataset: datasetFilter,
+        model: selectedModel
       });
       return response;
     },
@@ -146,7 +148,7 @@ export default function ResearchInsights() {
               </CardDescription>
             </div>
             <div className="flex items-center space-x-3">
-              <Select value={datasetFilter} onValueChange={setDatasetFilter}>
+              <Select value={datasetFilter} onValueChange={(value) => setDatasetFilter(value as 'all' | 'segment7' | 'personal')}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -154,6 +156,16 @@ export default function ResearchInsights() {
                   <SelectItem value="all">All Data</SelectItem>
                   <SelectItem value="segment7">Segment 7 Only</SelectItem>
                   <SelectItem value="personal">Personal Only</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={selectedModel} onValueChange={(value) => setSelectedModel(value as 'openai' | 'anthropic' | 'grok')}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="openai">OpenAI</SelectItem>
+                  <SelectItem value="anthropic">Anthropic</SelectItem>
+                  <SelectItem value="grok">Grok</SelectItem>
                 </SelectContent>
               </Select>
               <Button 
