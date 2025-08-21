@@ -88,6 +88,7 @@ export const uploadedFiles = pgTable("uploaded_files", {
   isProcessed: boolean("is_processed").default(false),
   extractedText: text("extracted_text"),
   tags: text("tags").array(),
+  shared: boolean("shared").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

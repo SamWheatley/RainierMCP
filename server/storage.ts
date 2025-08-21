@@ -19,7 +19,7 @@ import {
   type InsertResearchInsight,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -162,10 +162,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserFiles(userId: string): Promise<UploadedFile[]> {
+    // Get both user's own files AND shared files
     return await db
       .select()
       .from(uploadedFiles)
-      .where(eq(uploadedFiles.userId, userId))
+      .where(or(
+        eq(uploadedFiles.userId, userId),
+        eq(uploadedFiles.shared, true)
+      ))
       .orderBy(desc(uploadedFiles.createdAt));
   }
 

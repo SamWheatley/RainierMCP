@@ -27,7 +27,11 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
 
   const files: UploadedFile[] = filesData?.files || [];
 
-  const filteredFiles = files.filter(file => {
+  // Separate files into shared (Segment 7) and personal
+  const sharedFiles = files.filter(file => file.shared);
+  const personalFiles = files.filter(file => !file.shared);
+
+  const filterFilesBySearch = (fileList: UploadedFile[]) => fileList.filter(file => {
     const matchesSearch = searchQuery === "" || 
       file.originalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (file.extractedText && file.extractedText.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -39,6 +43,9 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
     
     return matchesSearch && matchesType;
   });
+
+  const filteredSharedFiles = filterFilesBySearch(sharedFiles);
+  const filteredPersonalFiles = filterFilesBySearch(personalFiles);
 
   const handleUploadComplete = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/files'] });
@@ -109,13 +116,7 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
         />
       )}
 
-      {/* Segment 7 Heading */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Segment 7</h2>
-        <p className="text-gray-600">Research data and documents for the Segment 7 initiative</p>
-      </div>
-
-      {/* Content Grid */}
+      {/* Content Sections */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
@@ -130,7 +131,7 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
             </div>
           ))}
         </div>
-      ) : filteredFiles.length === 0 && files.length === 0 ? (
+      ) : filteredSharedFiles.length === 0 && filteredPersonalFiles.length === 0 && files.length === 0 ? (
         /* Empty State */
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -148,7 +149,7 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
             Upload Your First File
           </Button>
         </div>
-      ) : filteredFiles.length === 0 ? (
+      ) : filteredSharedFiles.length === 0 && filteredPersonalFiles.length === 0 ? (
         /* No results */
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -167,30 +168,66 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFiles.map((file) => (
-            <FileCard 
-              key={file.id} 
-              file={file} 
-              onAskQuestions={() => onAskAboutFile(file)}
-            />
-          ))}
-          
-          {/* Add New File Card */}
-          <div 
-            onClick={() => setShowUpload(true)}
-            className="bg-white rounded-xl shadow-lg border-2 border-dashed border-gray-300 hover:border-primary transition-colors duration-200 cursor-pointer"
-          >
-            <div className="p-6 h-full flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                <Upload className="w-6 h-6 text-gray-500" />
+        <div className="space-y-8">
+          {/* Segment 7 Section */}
+          {filteredSharedFiles.length > 0 && (
+            <div>
+              <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Segment 7</h2>
+                <p className="text-gray-600">Research data and documents for the Segment 7 initiative</p>
+                <div className="mt-4 text-sm text-gray-500">
+                  {filteredSharedFiles.length} file{filteredSharedFiles.length !== 1 ? 's' : ''} • Shared across all users
+                </div>
               </div>
-              <h3 className="font-semibold text-gray-900 text-sm mb-2">Upload New File</h3>
-              <p className="text-xs text-gray-600">
-                Add transcripts, documents, or videos to analyze
-              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredSharedFiles.map((file) => (
+                  <FileCard 
+                    key={file.id} 
+                    file={file} 
+                    onAskQuestions={() => onAskAboutFile(file)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Personal Data Section */}
+          {filteredPersonalFiles.length > 0 && (
+            <div>
+              <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Personal Data</h2>
+                <p className="text-gray-600">Your private research files and documents</p>
+                <div className="mt-4 text-sm text-gray-500">
+                  {filteredPersonalFiles.length} file{filteredPersonalFiles.length !== 1 ? 's' : ''} • Private to your account
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPersonalFiles.map((file) => (
+                  <FileCard 
+                    key={file.id} 
+                    file={file} 
+                    onAskQuestions={() => onAskAboutFile(file)}
+                  />
+                ))}
+                
+                {/* Add New File Card only in Personal Data section */}
+                <div 
+                  onClick={() => setShowUpload(true)}
+                  className="bg-white rounded-xl shadow-lg border-2 border-dashed border-gray-300 hover:border-primary transition-colors duration-200 cursor-pointer"
+                >
+                  <div className="p-6 h-full flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                      <Upload className="w-6 h-6 text-gray-500" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 text-sm mb-2">Upload New File</h3>
+                    <p className="text-xs text-gray-600">
+                      Add transcripts, documents, or videos to analyze
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

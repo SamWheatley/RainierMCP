@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ export default function ResearchInsights() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingInsight, setEditingInsight] = useState<{ id: string; title: string } | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [datasetFilter, setDatasetFilter] = useState<'all' | 'segment7' | 'personal'>('all');
 
   // Fetch existing insights
   const { data: insightsData, isLoading } = useQuery<{ insights: ResearchInsight[] }>({
@@ -38,7 +40,9 @@ export default function ResearchInsights() {
   const generateInsightsMutation = useMutation({
     mutationFn: async () => {
       setIsGenerating(true);
-      const response = await apiRequest('POST', '/api/research-insights/generate');
+      const response = await apiRequest('POST', '/api/research-insights/generate', {
+        dataset: datasetFilter
+      });
       return response;
     },
     onSuccess: () => {
@@ -141,23 +145,35 @@ export default function ResearchInsights() {
                 AI-powered analysis of your research data including theme detection, bias identification, and pattern recognition.
               </CardDescription>
             </div>
-            <Button 
-              onClick={() => generateInsightsMutation.mutate()}
-              disabled={isGenerating}
-              className="min-w-[140px]"
-            >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Brain className="w-4 h-4 mr-2" />
-                  Generate Insights
-                </>
-              )}
-            </Button>
+            <div className="flex items-center space-x-3">
+              <Select value={datasetFilter} onValueChange={setDatasetFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Data</SelectItem>
+                  <SelectItem value="segment7">Segment 7 Only</SelectItem>
+                  <SelectItem value="personal">Personal Only</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button 
+                onClick={() => generateInsightsMutation.mutate()}
+                disabled={isGenerating}
+                className="min-w-[140px]"
+              >
+                {isGenerating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Brain className="w-4 h-4 mr-2" />
+                    Generate Insights
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </CardHeader>
       </Card>

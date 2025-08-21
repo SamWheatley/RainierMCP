@@ -352,6 +352,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
       }
 
+      // Determine if this is a Segment 7 file that should be shared
+      const isSegment7 = originalName.toLowerCase().includes('segment 7') || 
+                        originalName.toLowerCase().includes('segment_7') ||
+                        originalName.toLowerCase().includes('segment-7');
+
       // Create file record in database
       const file = await storage.createUploadedFile({
         userId,
@@ -361,6 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size,
         objectPath,
         isProcessed: false,
+        shared: isSegment7,
       });
 
       // Download and process file content for text extraction
@@ -886,14 +892,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/research-insights/generate', guestModeMiddleware, async (req: any, res) => {
     try {
       const userId = (req.user as any)?.claims?.sub;
+      const { dataset = 'all' } = req.body;
       
       // Get user's files and conversations for analysis
-      const files = await storage.getUploadedFilesByUser(userId);
+      let files = await storage.getUploadedFilesByUser(userId);
       const threads = await storage.getChatThreadsByUser(userId);
       
+      // Filter files based on dataset selection
+      if (dataset === 'segment7') {
+        files = files.filter(file => file.shared);
+      } else if (dataset === 'personal') {
+        files = files.filter(file => !file.shared);
+      }
+      // 'all' uses all files (both shared and personal)
+      
       if (files.length === 0 && threads.length === 0) {
+        const datasetName = dataset === 'segment7' ? 'Segment 7' : 
+                           dataset === 'personal' ? 'personal' : '';
         return res.status(400).json({ 
-          error: "No data available for analysis. Upload files or start conversations first." 
+          error: `No ${datasetName} data available for analysis. Upload files or start conversations first.` 
         });
       }
 
