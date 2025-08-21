@@ -2,10 +2,18 @@ import OpenAI from "openai";
 
 // Initialize OpenAI client for Grok with fresh environment variable
 const getGrokClient = () => {
-  const apiKey = process.env.XAI_API_KEY;
+  let apiKey = process.env.XAI_API_KEY;
   if (!apiKey) {
     throw new Error("XAI_API_KEY environment variable is not set");
   }
+  
+  // Ensure the key has the proper xai- prefix
+  if (!apiKey.startsWith('xai-')) {
+    apiKey = `xai-${apiKey}`;
+  }
+  
+  console.log(`Using Grok API key with prefix: ${apiKey.substring(0, 10)}...`);
+  
   return new OpenAI({ 
     baseURL: "https://api.x.ai/v1", 
     apiKey: apiKey
