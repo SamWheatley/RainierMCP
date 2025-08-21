@@ -131,7 +131,7 @@ export async function askWithFallback(
         // Add a note that fallback was used
         const enhancedResponse = {
           ...response,
-          content: response.content + "\n\n*Note: Response generated using fallback AI model due to document size limitations.*"
+          content: response.content + `\n\n*Note: Response generated using fallback AI model (${fallbackProvider}) due to ${primaryProvider} API issues.*`
         };
         
         return { 
