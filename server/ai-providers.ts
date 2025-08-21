@@ -18,7 +18,7 @@ export interface ChatResponse {
   }>;
 }
 
-export type AIProviderType = 'openai' | 'anthropic';
+export type AIProviderType = 'openai' | 'anthropic' | 'grok';
 
 // Factory function to get AI provider
 export async function getAIProvider(providerType: AIProviderType): Promise<AIProvider> {
@@ -37,6 +37,14 @@ export async function getAIProvider(providerType: AIProviderType): Promise<AIPro
         askRanier: anthropicModule.askRanier,
         extractTextFromDocument: anthropicModule.extractTextFromDocument,
         generateThreadTitle: anthropicModule.generateThreadTitle,
+      };
+    }
+    case 'grok': {
+      const grokModule = await import('./grok');
+      return {
+        askRanier: grokModule.askRanier,
+        extractTextFromDocument: grokModule.extractTextFromDocument,
+        generateThreadTitle: grokModule.generateThreadTitle,
       };
     }
     default:
@@ -64,7 +72,8 @@ export async function askWithFallback(
   sources: Array<{ filename: string; content: string }>,
   internetAccess: boolean = false
 ): Promise<{ response: ChatResponse; usedProvider: AIProviderType; usedFallback: boolean }> {
-  const fallbackProvider: AIProviderType = primaryProvider === 'openai' ? 'anthropic' : 'openai';
+  const fallbackProvider: AIProviderType = primaryProvider === 'grok' ? 'anthropic' : 
+                                           primaryProvider === 'openai' ? 'anthropic' : 'openai';
   
   // Augment sources with web search results if internet access is enabled
   let augmentedSources = sources;
