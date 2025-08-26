@@ -21,10 +21,10 @@ export default function Landing() {
               <span className="hidden sm:inline-block text-gray-600 font-medium">Ranier</span>
             </div>
             <Button 
-              onClick={() => window.location.href = '/api/login'}
+              onClick={() => window.location.href = '/guest'}
               className="bg-primary hover:bg-primary/90"
             >
-              Sign In
+              Enter Site
             </Button>
           </div>
         </div>
@@ -44,18 +44,10 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg"
-              onClick={() => window.location.href = '/api/login'}
+              onClick={() => window.location.href = '/guest'}
               className="bg-primary hover:bg-primary/90 text-lg px-8 py-3"
             >
-              Sign In with Replit
-            </Button>
-            <Button 
-              size="lg"
-              variant="outline"
-              onClick={() => window.location.href = '/guest'}
-              className="border-primary text-primary hover:bg-primary/5 text-lg px-8 py-3"
-            >
-              Continue as Guest
+              Enter Ranier
             </Button>
           </div>
         </div>
@@ -121,10 +113,10 @@ export default function Landing() {
           </p>
           <Button 
             size="lg"
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => window.location.href = '/guest'}
             className="bg-primary hover:bg-primary/90 text-lg px-8 py-3"
           >
-            Sign In to Get Started
+            Get Started
           </Button>
         </div>
       </div>
