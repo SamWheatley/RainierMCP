@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefreshCw, TrendingUp, AlertTriangle, Users, FileText, Brain, Lightbulb, MoreVertical, Edit2, Trash2, CheckCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -56,6 +58,9 @@ export default function ResearchInsights() {
 
   const insights: ResearchInsight[] = insightsData?.insights || [];
   const sessions: InsightSession[] = insightsData?.sessions || [];
+
+  // Flatten all insights from all sessions for tabbed display
+  const allInsights = sessions.flatMap(session => session.insights);
 
   // Generate new insights
   const generateInsightsMutation = useMutation({
@@ -357,8 +362,8 @@ export default function ResearchInsights() {
         </Card>
       )}
 
-      {/* Sessions Display */}
-      {sessions.length === 0 ? (
+      {/* Insights Display */}
+      {allInsights.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -376,106 +381,197 @@ export default function ResearchInsights() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {sessions
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .map((session) => (
-            <Card key={session.id} className="border-l-4 border-l-primary">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{session.title}</span>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <Badge variant="outline">{session.model.charAt(0).toUpperCase() + session.model.slice(1)}</Badge>
-                    <Badge variant="outline">{getDatasetName(session.dataset)}</Badge>
-                    <span>{session.insights.length} insights</span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {session.insights
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="themes">Themes</TabsTrigger>
+            <TabsTrigger value="bias">Bias</TabsTrigger>
+            <TabsTrigger value="patterns">Patterns</TabsTrigger>
+            <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="space-y-4">
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-4 pr-4">
+                {allInsights
+                  .sort((a, b) => b.confidence - a.confidence)
+                  .map((insight) => (
+                  <Card key={insight.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
+                            {getInsightIcon(insight.type)}
+                          </div>
+                          <div>
+                            {editingInsight?.id === insight.id ? (
+                              <div className="flex items-center space-x-2">
+                                <Input
+                                  value={newTitle}
+                                  onChange={(e) => setNewTitle(e.target.value)}
+                                  className="text-lg font-semibold"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveEdit();
+                                    if (e.key === 'Escape') handleCancelEdit();
+                                  }}
+                                  autoFocus
+                                />
+                                <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                                <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                              </div>
+                            ) : (
+                              <CardTitle className="text-lg">{insight.title}</CardTitle>
+                            )}
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Badge variant="outline" className={getInsightColor(insight.type)}>
+                                {insight.type}
+                              </Badge>
+                              <Badge variant="outline">
+                                {formatConfidence(insight.confidence)} confidence
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleStartEdit(insight)}>
+                              <Edit2 className="w-4 h-4 mr-2" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => deleteInsightMutation.mutate(insight.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-gray-700 mb-4">{insight.description}</p>
+                      {insight.sources.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-600 mb-2">Sources:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {insight.sources.map((source, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {source}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Filtered tabs */}
+          {['themes', 'bias', 'patterns', 'recommendations'].map((filterType) => (
+            <TabsContent key={filterType} value={filterType} className="space-y-4">
+              <ScrollArea className="h-[600px]">
+                <div className="space-y-4 pr-4">
+                  {allInsights
+                    .filter((insight) => {
+                      switch (filterType) {
+                        case 'themes': return insight.type === 'theme';
+                        case 'bias': return insight.type === 'bias';
+                        case 'patterns': return insight.type === 'pattern';
+                        case 'recommendations': return insight.type === 'recommendation';
+                        default: return false;
+                      }
+                    })
                     .sort((a, b) => b.confidence - a.confidence)
                     .map((insight) => (
-                    <Card key={insight.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
-                              {getInsightIcon(insight.type)}
-                            </div>
-                            <div>
-                              {editingInsight?.id === insight.id ? (
-                                <div className="flex items-center space-x-2">
-                                  <Input
-                                    value={newTitle}
-                                    onChange={(e) => setNewTitle(e.target.value)}
-                                    className="text-lg font-semibold"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleSaveEdit();
-                                      if (e.key === 'Escape') handleCancelEdit();
-                                    }}
-                                    autoFocus
-                                  />
-                                  <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                                  <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                      <Card key={insight.id} className="hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
+                                {getInsightIcon(insight.type)}
+                              </div>
+                              <div>
+                                {editingInsight?.id === insight.id ? (
+                                  <div className="flex items-center space-x-2">
+                                    <Input
+                                      value={newTitle}
+                                      onChange={(e) => setNewTitle(e.target.value)}
+                                      className="text-lg font-semibold"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveEdit();
+                                        if (e.key === 'Escape') handleCancelEdit();
+                                      }}
+                                      autoFocus
+                                    />
+                                    <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                                    <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                                  </div>
+                                ) : (
+                                  <CardTitle className="text-lg">{insight.title}</CardTitle>
+                                )}
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <Badge variant="outline" className={getInsightColor(insight.type)}>
+                                    {insight.type}
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    {formatConfidence(insight.confidence)} confidence
+                                  </Badge>
                                 </div>
-                              ) : (
-                                <CardTitle className="text-lg">{insight.title}</CardTitle>
-                              )}
-                              <div className="flex items-center space-x-2 mt-1">
-                                <Badge variant="outline" className={getInsightColor(insight.type)}>
-                                  {insight.type}
-                                </Badge>
-                                <Badge variant="outline">
-                                  {formatConfidence(insight.confidence)} confidence
-                                </Badge>
                               </div>
                             </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleStartEdit(insight)}>
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => deleteInsightMutation.mutate(insight.id)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleStartEdit(insight)}>
-                                <Edit2 className="w-4 h-4 mr-2" />
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => deleteInsightMutation.mutate(insight.id)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-gray-700 mb-4">{insight.description}</p>
-                        {insight.sources.length > 0 && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-600 mb-2">Sources:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {insight.sources.map((source, index) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
-                                  {source}
-                                </Badge>
-                              ))}
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-gray-700 mb-4">{insight.description}</p>
+                          {insight.sources.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 mb-2">Sources:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {insight.sources.map((source, index) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {source}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
-              </CardContent>
-            </Card>
+              </ScrollArea>
+            </TabsContent>
           ))}
-        </div>
+        </Tabs>
       )}
     </div>
   );
