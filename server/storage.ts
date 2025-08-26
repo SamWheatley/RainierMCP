@@ -56,6 +56,9 @@ export interface IStorage {
   getResearchInsights(userId: string): Promise<ResearchInsight[]>;
   updateResearchInsight(id: string, userId: string, title: string): Promise<void>;
   deleteResearchInsight(id: string, userId: string): Promise<void>;
+  
+  // Shared files for guest access
+  getSharedFiles(): Promise<UploadedFile[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -263,6 +266,15 @@ export class DatabaseStorage implements IStorage {
         eq(researchInsights.id, id), 
         eq(researchInsights.userId, userId)
       ));
+  }
+  
+  // Get shared files for guest users
+  async getSharedFiles(): Promise<UploadedFile[]> {
+    return await db
+      .select()
+      .from(uploadedFiles)
+      .where(eq(uploadedFiles.shared, true))
+      .orderBy(desc(uploadedFiles.createdAt));
   }
 }
 

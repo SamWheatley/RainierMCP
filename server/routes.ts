@@ -723,7 +723,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files", guestModeMiddleware, async (req, res) => {
     const userId = (req.user as any)?.claims?.sub;
     try {
-      const files = await storage.getUserFiles(userId);
+      let files;
+      if (userId) {
+        // Authenticated user - get their files plus shared files
+        files = await storage.getUserFiles(userId);
+      } else {
+        // Guest user - only get shared files
+        files = await storage.getSharedFiles();
+      }
       res.json({ files });
     } catch (error) {
       console.error("Error fetching files:", error);
