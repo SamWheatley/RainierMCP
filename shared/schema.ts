@@ -126,10 +126,21 @@ export const insertUploadedFileSchema = createInsertSchema(uploadedFiles).omit({
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Insight sessions to group related insights together
+export const insightSessions = pgTable("insight_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title").notNull(),
+  dataset: varchar("dataset", { enum: ["all", "segment7", "personal"] }).notNull(),
+  model: varchar("model", { enum: ["openai", "anthropic", "grok"] }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Research Insights table
 export const researchInsights = pgTable("research_insights", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sessionId: varchar("session_id").notNull().references(() => insightSessions.id, { onDelete: "cascade" }),
   type: varchar("type", { enum: ["theme", "bias", "pattern", "recommendation"] }).notNull(),
   title: varchar("title").notNull(),
   description: text("description").notNull(),
@@ -139,6 +150,13 @@ export const researchInsights = pgTable("research_insights", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const insertInsightSessionSchema = createInsertSchema(insightSessions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsightSession = typeof insightSessions.$inferSelect;
+export type InsertInsightSession = z.infer<typeof insertInsightSessionSchema>;
 export type ResearchInsight = typeof researchInsights.$inferSelect;
 export type InsertResearchInsight = typeof researchInsights.$inferInsert;
 export type InsertChatThread = z.infer<typeof insertChatThreadSchema>;

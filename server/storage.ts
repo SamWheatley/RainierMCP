@@ -5,6 +5,7 @@ import {
   chatAttachments,
   uploadedFiles,
   researchInsights,
+  insightSessions,
   type User,
   type UpsertUser,
   type ChatThread,
@@ -17,6 +18,8 @@ import {
   type InsertUploadedFile,
   type ResearchInsight,
   type InsertResearchInsight,
+  type InsightSession,
+  type InsertInsightSession,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or } from "drizzle-orm";
@@ -50,6 +53,11 @@ export interface IStorage {
   searchFilesByContent(userId: string, query: string): Promise<UploadedFile[]>;
   getUploadedFilesByUser(userId: string): Promise<UploadedFile[]>;
   getChatThreadsByUser(userId: string): Promise<ChatThread[]>;
+  
+  // Insight Session operations
+  createInsightSession(session: InsertInsightSession): Promise<InsightSession>;
+  getInsightSessions(userId: string): Promise<(InsightSession & { insights: ResearchInsight[] })[]>;
+  deleteInsightSession(id: string, userId: string): Promise<void>;
   
   // Research Insights operations
   createResearchInsight(insight: InsertResearchInsight): Promise<ResearchInsight>;
@@ -227,6 +235,45 @@ export class DatabaseStorage implements IStorage {
       .from(chatThreads)
       .where(eq(chatThreads.userId, userId))
       .orderBy(desc(chatThreads.updatedAt));
+  }
+
+  // Insight Session operations
+  async createInsightSession(session: InsertInsightSession): Promise<InsightSession> {
+    const [created] = await db
+      .insert(insightSessions)
+      .values(session)
+      .returning();
+    return created;
+  }
+
+  async getInsightSessions(userId: string): Promise<(InsightSession & { insights: ResearchInsight[] })[]> {
+    const sessions = await db
+      .select()
+      .from(insightSessions)
+      .where(eq(insightSessions.userId, userId))
+      .orderBy(desc(insightSessions.createdAt));
+
+    const result = [];
+    for (const session of sessions) {
+      const insights = await db
+        .select()
+        .from(researchInsights)
+        .where(eq(researchInsights.sessionId, session.id))
+        .orderBy(desc(researchInsights.createdAt));
+      
+      result.push({ ...session, insights });
+    }
+    
+    return result;
+  }
+
+  async deleteInsightSession(id: string, userId: string): Promise<void> {
+    await db
+      .delete(insightSessions)
+      .where(and(
+        eq(insightSessions.id, id), 
+        eq(insightSessions.userId, userId)
+      ));
   }
 
   // Research Insights operations

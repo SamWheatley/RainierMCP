@@ -6,17 +6,51 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { getAIProvider, type AIProviderType } from "./ai-providers";
 import { z } from "zod";
-import type { UploadedFile, ChatThread, InsertResearchInsight } from "@shared/schema";
+import type { UploadedFile, ChatThread, InsertResearchInsight, InsertInsightSession } from "@shared/schema";
 import OpenAI from "openai";
+
+// Helper function to generate session titles
+function generateSessionTitle(dataset: string, model: string): string {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const datasetLabel = {
+    'all': 'All Data',
+    'segment7': 'Segment 7 Only',
+    'personal': 'Personal Only'
+  }[dataset] || 'All Data';
+  
+  const modelLabel = {
+    'openai': 'OpenAI',
+    'anthropic': 'Anthropic',
+    'grok': 'Grok'
+  }[model] || 'OpenAI';
+  
+  return `${dateStr} ${datasetLabel} (${modelLabel}) Insights`;
+}
 
 // AI-powered research insights generation
 async function generateResearchInsights(
   userId: string, 
   files: UploadedFile[], 
   threads: ChatThread[],
-  model: string = 'openai'
-): Promise<InsertResearchInsight[]> {
+  model: string = 'openai',
+  dataset: string = 'all'
+): Promise<{ sessionId: string; insights: InsertResearchInsight[] }> {
   const insights: InsertResearchInsight[] = [];
+  
+  // Create a session for this analysis run
+  const sessionTitle = generateSessionTitle(dataset, model);
+  const session = await storage.createInsightSession({
+    userId,
+    title: sessionTitle,
+    dataset: dataset as 'all' | 'segment7' | 'personal',
+    model: model as 'openai' | 'anthropic' | 'grok',
+  });
   
   try {
     // Helper function to make AI requests based on selected model
@@ -103,6 +137,7 @@ Limit to 3-5 most significant themes.`;
     insights.push(...themeInsights.map((insight: any) => ({
       ...insight,
       userId,
+      sessionId: session.id,
       sources: insight.sources || []
     })));
 
@@ -134,6 +169,7 @@ Look for subtle biases too - even minor concerns are valuable for improving rese
     insights.push(...biasInsights.map((insight: any) => ({
       ...insight,
       userId,
+      sessionId: session.id,
       sources: insight.sources || []
     })));
 
@@ -166,6 +202,7 @@ Focus on 2-4 most significant patterns that could inform strategy.`;
     insights.push(...patternInsights.map((insight: any) => ({
       ...insight,
       userId,
+      sessionId: session.id,
       sources: insight.sources || []
     })));
 
@@ -197,6 +234,7 @@ Focus on 2-4 highest-impact recommendations.`;
     insights.push(...recommendations.map((insight: any) => ({
       ...insight,
       userId,
+      sessionId: session.id,
       sources: insight.sources || []
     })));
 
@@ -206,6 +244,7 @@ Focus on 2-4 highest-impact recommendations.`;
     // Return fallback insights if AI fails
     insights.push({
       userId,
+      sessionId: session.id,
       type: 'recommendation' as const,
       title: 'Analysis Available',
       description: `Found ${files.length} files and ${threads.length} conversations ready for detailed analysis. AI analysis temporarily unavailable - please try again.`,
@@ -214,7 +253,7 @@ Focus on 2-4 highest-impact recommendations.`;
     });
   }
 
-  return insights;
+  return { sessionId: session.id, insights };
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -899,8 +938,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/research-insights', guestModeMiddleware, async (req: any, res) => {
     try {
       const userId = (req.user as any)?.claims?.sub;
-      const insights = await storage.getResearchInsights(userId);
-      res.json({ insights });
+      const sessions = await storage.getInsightSessions(userId);
+      // Flatten all insights from all sessions for backwards compatibility
+      const allInsights = sessions.flatMap(session => session.insights);
+      res.json({ insights: allInsights, sessions });
     } catch (error: any) {
       console.error("Error fetching research insights:", error);
       res.status(500).json({ error: "Failed to fetch research insights" });
@@ -933,16 +974,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate insights using AI analysis
-      const newInsights = await generateResearchInsights(userId, files, threads, model);
+      const result = await generateResearchInsights(userId, files, threads, model, dataset);
       
       // Store insights in database
-      for (const insight of newInsights) {
+      for (const insight of result.insights) {
         await storage.createResearchInsight(insight);
       }
 
       res.json({ 
         message: "Research insights generated successfully", 
-        count: newInsights.length 
+        count: result.insights.length,
+        sessionId: result.sessionId
       });
     } catch (error: any) {
       console.error("Error generating research insights:", error);

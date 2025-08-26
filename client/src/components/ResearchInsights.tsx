@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -23,6 +22,15 @@ interface ResearchInsight {
   createdAt: string;
 }
 
+interface InsightSession {
+  id: string;
+  title: string;
+  dataset: 'all' | 'segment7' | 'personal';
+  model: 'openai' | 'anthropic' | 'grok';
+  createdAt: string;
+  insights: ResearchInsight[];
+}
+
 export default function ResearchInsights() {
   const queryClient = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -36,12 +44,18 @@ export default function ResearchInsights() {
   const [datasetFilter, setDatasetFilter] = useState<'all' | 'segment7' | 'personal'>('all');
   const [selectedModel, setSelectedModel] = useState<'openai' | 'anthropic' | 'grok'>('anthropic');
 
-  // Fetch existing insights
-  const { data: insightsData, isLoading } = useQuery<{ insights: ResearchInsight[] }>({
+  const { toast } = useToast();
+
+  // Fetch existing insights with sessions
+  const { data: insightsData, isLoading } = useQuery<{ 
+    insights: ResearchInsight[]; 
+    sessions: InsightSession[] 
+  }>({
     queryKey: ['/api/research-insights'],
   });
 
   const insights: ResearchInsight[] = insightsData?.insights || [];
+  const sessions: InsightSession[] = insightsData?.sessions || [];
 
   // Generate new insights
   const generateInsightsMutation = useMutation({
@@ -78,44 +92,75 @@ export default function ResearchInsights() {
         });
         clearInterval(progressInterval);
         setGenerationProgress({ stage: "Complete!", progress: 100, stages });
+        
+        // Show success message after a brief delay
+        setTimeout(() => {
+          setGenerationProgress(null);
+          setIsGenerating(false);
+        }, 2000);
+        
         return response;
       } catch (error) {
         clearInterval(progressInterval);
+        setGenerationProgress(null);
+        setIsGenerating(false);
         throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/research-insights'] });
-      setTimeout(() => {
-        setIsGenerating(false);
-        setGenerationProgress(null);
-      }, 1000);
+      toast({
+        title: "Success",
+        description: "Research insights generated successfully!",
+      });
     },
-    onError: () => {
-      setIsGenerating(false);
-      setGenerationProgress(null);
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate research insights",
+        variant: "destructive",
+      });
     },
   });
 
-  // Delete insight mutation
+  // Delete insight
   const deleteInsightMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest('DELETE', `/api/research-insights/${id}`);
-    },
+    mutationFn: (insightId: string) => apiRequest('DELETE', `/api/research-insights/${insightId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/research-insights'] });
+      toast({
+        title: "Success",
+        description: "Insight deleted successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete insight",
+        variant: "destructive",
+      });
     },
   });
 
-  // Update insight title mutation  
+  // Update insight title
   const updateInsightMutation = useMutation({
-    mutationFn: async ({ id, title }: { id: string; title: string }) => {
-      await apiRequest('PUT', `/api/research-insights/${id}`, { title });
-    },
+    mutationFn: ({ id, title }: { id: string; title: string }) => 
+      apiRequest('PATCH', `/api/research-insights/${id}`, { title }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/research-insights'] });
       setEditingInsight(null);
       setNewTitle("");
+      toast({
+        title: "Success",
+        description: "Insight updated successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update insight",
+        variant: "destructive",
+      });
     },
   });
 
@@ -137,21 +182,31 @@ export default function ResearchInsights() {
 
   const getInsightIcon = (type: string) => {
     switch (type) {
-      case 'theme': return <TrendingUp className="w-5 h-5" />;
-      case 'bias': return <AlertTriangle className="w-5 h-5" />;
-      case 'pattern': return <Users className="w-5 h-5" />;
-      case 'recommendation': return <Lightbulb className="w-5 h-5" />;
-      default: return <Brain className="w-5 h-5" />;
+      case 'theme':
+        return <TrendingUp className="w-4 h-4" />;
+      case 'bias':
+        return <AlertTriangle className="w-4 h-4" />;
+      case 'pattern':
+        return <Users className="w-4 h-4" />;
+      case 'recommendation':
+        return <Lightbulb className="w-4 h-4" />;
+      default:
+        return <FileText className="w-4 h-4" />;
     }
   };
 
   const getInsightColor = (type: string) => {
     switch (type) {
-      case 'theme': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'bias': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'pattern': return 'bg-green-100 text-green-800 border-green-200';
-      case 'recommendation': return 'bg-purple-100 text-purple-800 border-purple-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'theme':
+        return 'bg-blue-100 text-blue-600 border-blue-200';
+      case 'bias':
+        return 'bg-red-100 text-red-600 border-red-200';
+      case 'pattern':
+        return 'bg-green-100 text-green-600 border-green-200';
+      case 'recommendation':
+        return 'bg-yellow-100 text-yellow-600 border-yellow-200';
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
 
@@ -159,126 +214,157 @@ export default function ResearchInsights() {
     return `${Math.round(confidence * 100)}%`;
   };
 
+  const getDatasetName = (dataset: string) => {
+    switch (dataset) {
+      case 'segment7':
+        return 'Segment 7';
+      case 'personal':
+        return 'Personal Files';
+      default:
+        return 'All Data';
+    }
+  };
+
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-8">
+        <RefreshCw className="w-6 h-6 animate-spin" />
+        <span className="ml-2">Loading insights...</span>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto p-6 space-y-6" data-testid="research-insights">
       {/* Header */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center space-x-2">
-                <Brain className="w-6 h-6 text-primary" />
-                <span>Research Insights</span>
-              </CardTitle>
-              <CardDescription>
-                AI-powered analysis of your research data including theme detection, bias identification, and pattern recognition.
-              </CardDescription>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Select value={datasetFilter} onValueChange={(value) => setDatasetFilter(value as 'all' | 'segment7' | 'personal')}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Data</SelectItem>
-                  <SelectItem value="segment7">Segment 7 Only</SelectItem>
-                  <SelectItem value="personal">Personal Only</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={selectedModel} onValueChange={(value) => setSelectedModel(value as 'openai' | 'anthropic' | 'grok')}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="anthropic">Anthropic</SelectItem>
-                  <SelectItem value="openai">OpenAI</SelectItem>
-                  <SelectItem value="grok">Grok</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button 
-                onClick={() => generateInsightsMutation.mutate()}
-                disabled={isGenerating}
-                className="min-w-[140px]"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Brain className="w-4 h-4 mr-2" />
-                    Generate Insights
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
+          <CardTitle className="flex items-center">
+            <Brain className="w-6 h-6 mr-2" />
+            Research Insights
+          </CardTitle>
         </CardHeader>
       </Card>
 
-      {/* Progress Indicator */}
-      {isGenerating && generationProgress && (
-        <Card>
+      {/* Generation Progress */}
+      {generationProgress && (
+        <Card className="border-primary/50 bg-primary/5">
           <CardContent className="p-6">
             <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <RefreshCw className="w-5 h-5 animate-spin text-primary" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{generationProgress.stage}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    This process typically takes 1-2 minutes depending on the amount of data
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="animate-spin">
+                    <RefreshCw className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-primary">Generating Research Insights</p>
+                    <p className="text-sm text-gray-600">{generationProgress.stage}</p>
+                  </div>
                 </div>
-                <span className="text-sm font-medium text-gray-700">
-                  {generationProgress.progress}%
-                </span>
+                <div className="flex items-center space-x-2">
+                  {generationProgress.progress === 100 ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <span className="text-sm font-medium text-primary">
+                      {generationProgress.progress}%
+                    </span>
+                  )}
+                </div>
               </div>
               <Progress value={generationProgress.progress} className="w-full" />
-              <div className="flex items-center space-x-2 text-xs text-gray-500">
-                {generationProgress.stages.map((stage, index) => (
-                  <div key={index} className="flex items-center space-x-1">
-                    {generationProgress.progress > (10 + index * 20) ? (
-                      <CheckCircle className="w-3 h-3 text-green-600" />
-                    ) : (
-                      <div className="w-3 h-3 rounded-full border border-gray-300" />
-                    )}
-                    <span className={generationProgress.progress > (10 + index * 20) ? "text-green-700" : ""}>
-                      {stage.split(' ')[0]}
-                    </span>
-                    {index < generationProgress.stages.length - 1 && (
-                      <span className="mx-1 text-gray-300">→</span>
-                    )}
-                  </div>
-                ))}
+              <div className="grid grid-cols-5 gap-2 text-xs">
+                {generationProgress.stages.map((stage, index) => {
+                  const stageProgress = (index + 1) * 20;
+                  const isActive = generationProgress.progress >= stageProgress - 10;
+                  const isComplete = generationProgress.progress >= stageProgress;
+                  
+                  return (
+                    <div 
+                      key={index} 
+                      className={`flex items-center space-x-1 ${
+                        isComplete ? 'text-green-600' : 
+                        isActive ? 'text-primary' : 'text-gray-400'
+                      }`}
+                    >
+                      {isComplete ? (
+                        <CheckCircle className="w-3 h-3" />
+                      ) : isActive ? (
+                        <div className="w-3 h-3 border-2 border-current rounded-full animate-pulse" />
+                      ) : (
+                        <div className="w-3 h-3 border border-current rounded-full" />
+                      )}
+                      <span className="truncate">{stage.split(' ')[0]}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Insights Display */}
-      {insights.length === 0 ? (
+      {/* Generation Controls */}
+      {!isGenerating && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Generate New Insights</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-2 block">Data Source</label>
+                <Select 
+                  value={datasetFilter} 
+                  onValueChange={(value: 'all' | 'segment7' | 'personal') => setDatasetFilter(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select data source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Data</SelectItem>
+                    <SelectItem value="segment7">Segment 7 Only</SelectItem>
+                    <SelectItem value="personal">Personal Files Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-2 block">AI Model</label>
+                <Select 
+                  value={selectedModel} 
+                  onValueChange={(value: 'openai' | 'anthropic' | 'grok') => setSelectedModel(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select AI model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="anthropic">Anthropic Claude</SelectItem>
+                    <SelectItem value="openai">OpenAI GPT</SelectItem>
+                    <SelectItem value="grok">xAI Grok</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button 
+              onClick={() => generateInsightsMutation.mutate()}
+              disabled={isGenerating}
+              className="w-full"
+              data-testid="button-generate-insights"
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              Generate Insights for {getDatasetName(datasetFilter)}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sessions Display */}
+      {sessions.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No insights yet</h3>
-            <p className="text-gray-600 mb-6">
-              Upload some research files and start conversations to generate insights.
+            <p className="text-gray-600 mb-4">
+              Generate your first research insights to discover themes, patterns, and recommendations from your data.
             </p>
             <Button 
               onClick={() => generateInsightsMutation.mutate()}
@@ -290,192 +376,106 @@ export default function ResearchInsights() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="themes">Themes</TabsTrigger>
-            <TabsTrigger value="bias">Bias</TabsTrigger>
-            <TabsTrigger value="patterns">Patterns</TabsTrigger>
-            <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="space-y-4">
-            <ScrollArea className="h-[600px]">
-              <div className="space-y-4 pr-4">
-                {insights
-                  .sort((a, b) => b.confidence - a.confidence)
-                  .map((insight) => (
-                  <Card key={insight.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
-                            {getInsightIcon(insight.type)}
-                          </div>
-                          <div>
-                            {editingInsight?.id === insight.id ? (
-                              <div className="flex items-center space-x-2">
-                                <Input
-                                  value={newTitle}
-                                  onChange={(e) => setNewTitle(e.target.value)}
-                                  className="text-lg font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSaveEdit();
-                                    if (e.key === 'Escape') handleCancelEdit();
-                                  }}
-                                  autoFocus
-                                />
-                                <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                                <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                              </div>
-                            ) : (
-                              <CardTitle className="text-lg">{insight.title}</CardTitle>
-                            )}
-                            <div className="flex items-center space-x-2 mt-1">
-                              <Badge variant="outline" className={getInsightColor(insight.type)}>
-                                {insight.type}
-                              </Badge>
-                              <Badge variant="outline">
-                                {formatConfidence(insight.confidence)} confidence
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleStartEdit(insight)}>
-                              <Edit2 className="w-4 h-4 mr-2" />
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => deleteInsightMutation.mutate(insight.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-700 mb-4">{insight.description}</p>
-                      {insight.sources.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-gray-600 mb-2">Sources:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {insight.sources.map((source, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {source}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-
-          {/* Filtered tabs */}
-          {['themes', 'bias', 'patterns', 'recommendations'].map((filterType) => (
-            <TabsContent key={filterType} value={filterType} className="space-y-4">
-              <ScrollArea className="h-[600px]">
-                <div className="space-y-4 pr-4">
-                  {insights
-                    .filter((insight) => {
-                      switch (filterType) {
-                        case 'themes': return insight.type === 'theme';
-                        case 'bias': return insight.type === 'bias';
-                        case 'patterns': return insight.type === 'pattern';
-                        case 'recommendations': return insight.type === 'recommendation';
-                        default: return false;
-                      }
-                    })
+        <div className="space-y-6">
+          {sessions
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map((session) => (
+            <Card key={session.id} className="border-l-4 border-l-primary">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>{session.title}</span>
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <Badge variant="outline">{session.model.charAt(0).toUpperCase() + session.model.slice(1)}</Badge>
+                    <Badge variant="outline">{getDatasetName(session.dataset)}</Badge>
+                    <span>{session.insights.length} insights</span>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {session.insights
                     .sort((a, b) => b.confidence - a.confidence)
                     .map((insight) => (
-                      <Card key={insight.id} className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
-                                {getInsightIcon(insight.type)}
-                              </div>
-                              <div>
-                                {editingInsight?.id === insight.id ? (
-                                  <div className="flex items-center space-x-2">
-                                    <Input
-                                      value={newTitle}
-                                      onChange={(e) => setNewTitle(e.target.value)}
-                                      className="text-lg font-semibold"
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleSaveEdit();
-                                        if (e.key === 'Escape') handleCancelEdit();
-                                      }}
-                                      autoFocus
-                                    />
-                                    <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                                    <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                                  </div>
-                                ) : (
-                                  <CardTitle className="text-lg">{insight.title}</CardTitle>
-                                )}
+                    <Card key={insight.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
+                              {getInsightIcon(insight.type)}
+                            </div>
+                            <div>
+                              {editingInsight?.id === insight.id ? (
+                                <div className="flex items-center space-x-2">
+                                  <Input
+                                    value={newTitle}
+                                    onChange={(e) => setNewTitle(e.target.value)}
+                                    className="text-lg font-semibold"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveEdit();
+                                      if (e.key === 'Escape') handleCancelEdit();
+                                    }}
+                                    autoFocus
+                                  />
+                                  <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                                  <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                                </div>
+                              ) : (
+                                <CardTitle className="text-lg">{insight.title}</CardTitle>
+                              )}
+                              <div className="flex items-center space-x-2 mt-1">
+                                <Badge variant="outline" className={getInsightColor(insight.type)}>
+                                  {insight.type}
+                                </Badge>
                                 <Badge variant="outline">
                                   {formatConfidence(insight.confidence)} confidence
                                 </Badge>
                               </div>
                             </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleStartEdit(insight)}>
-                                  <Edit2 className="w-4 h-4 mr-2" />
-                                  Rename
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => deleteInsightMutation.mutate(insight.id)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-gray-700 mb-4">{insight.description}</p>
-                          {insight.sources.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium text-gray-600 mb-2">Sources:</p>
-                              <div className="flex flex-wrap gap-2">
-                                {insight.sources.map((source, index) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {source}
-                                  </Badge>
-                                ))}
-                              </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleStartEdit(insight)}>
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => deleteInsightMutation.mutate(insight.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-700 mb-4">{insight.description}</p>
+                        {insight.sources.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-gray-600 mb-2">Sources:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {insight.sources.map((source, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {source}
+                                </Badge>
+                              ))}
                             </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </ScrollArea>
-            </TabsContent>
+              </CardContent>
+            </Card>
           ))}
-        </Tabs>
+        </div>
       )}
     </div>
   );
