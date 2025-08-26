@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { RefreshCw, TrendingUp, AlertTriangle, Users, FileText, Brain, Lightbulb, MoreVertical, Edit2, Trash2 } from "lucide-react";
+import { RefreshCw, TrendingUp, AlertTriangle, Users, FileText, Brain, Lightbulb, MoreVertical, Edit2, Trash2, CheckCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ResearchInsight {
@@ -25,6 +26,11 @@ interface ResearchInsight {
 export default function ResearchInsights() {
   const queryClient = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<{
+    stage: string;
+    progress: number;
+    stages: string[];
+  } | null>(null);
   const [editingInsight, setEditingInsight] = useState<{ id: string; title: string } | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [datasetFilter, setDatasetFilter] = useState<'all' | 'segment7' | 'personal'>('all');
@@ -41,18 +47,53 @@ export default function ResearchInsights() {
   const generateInsightsMutation = useMutation({
     mutationFn: async () => {
       setIsGenerating(true);
-      const response = await apiRequest('POST', '/api/research-insights/generate', {
-        dataset: datasetFilter,
-        model: selectedModel
-      });
-      return response;
+      
+      const stages = [
+        "Analyzing uploaded files and conversations...",
+        "Detecting themes and patterns...", 
+        "Identifying potential biases...",
+        "Generating recommendations...",
+        "Finalizing insights..."
+      ];
+      
+      setGenerationProgress({ stage: stages[0], progress: 10, stages });
+      
+      // Simulate progress updates during the long request
+      let currentStage = 0;
+      const progressInterval = setInterval(() => {
+        currentStage++;
+        if (currentStage < stages.length) {
+          setGenerationProgress({ 
+            stage: stages[currentStage], 
+            progress: 10 + (currentStage * 20), 
+            stages 
+          });
+        }
+      }, 12000); // Update every 12 seconds
+      
+      try {
+        const response = await apiRequest('POST', '/api/research-insights/generate', {
+          dataset: datasetFilter,
+          model: selectedModel
+        });
+        clearInterval(progressInterval);
+        setGenerationProgress({ stage: "Complete!", progress: 100, stages });
+        return response;
+      } catch (error) {
+        clearInterval(progressInterval);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/research-insights'] });
-      setIsGenerating(false);
+      setTimeout(() => {
+        setIsGenerating(false);
+        setGenerationProgress(null);
+      }, 1000);
     },
     onError: () => {
       setIsGenerating(false);
+      setGenerationProgress(null);
     },
   });
 
@@ -189,6 +230,46 @@ export default function ResearchInsights() {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Progress Indicator */}
+      {isGenerating && generationProgress && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{generationProgress.stage}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    This process typically takes 1-2 minutes depending on the amount of data
+                  </p>
+                </div>
+                <span className="text-sm font-medium text-gray-700">
+                  {generationProgress.progress}%
+                </span>
+              </div>
+              <Progress value={generationProgress.progress} className="w-full" />
+              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                {generationProgress.stages.map((stage, index) => (
+                  <div key={index} className="flex items-center space-x-1">
+                    {generationProgress.progress > (10 + index * 20) ? (
+                      <CheckCircle className="w-3 h-3 text-green-600" />
+                    ) : (
+                      <div className="w-3 h-3 rounded-full border border-gray-300" />
+                    )}
+                    <span className={generationProgress.progress > (10 + index * 20) ? "text-green-700" : ""}>
+                      {stage.split(' ')[0]}
+                    </span>
+                    {index < generationProgress.stages.length - 1 && (
+                      <span className="mx-1 text-gray-300">→</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Insights Display */}
       {insights.length === 0 ? (
