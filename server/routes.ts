@@ -35,10 +35,20 @@ async function generateResearchInsights(
         });
         const textContent = (response.content[0] as any).text || '[]';
         // Clean up potential markdown code blocks and other formatting
-        const cleanedContent = textContent
+        let cleanedContent = textContent
           .replace(/```json\s*/gi, '')
           .replace(/```\s*$/gi, '')
+          .replace(/```\s*/gi, '') // Handle cases with just ```
           .trim();
+        
+        // If it still doesn't look like JSON, try to extract JSON from the response
+        if (!cleanedContent.startsWith('[') && !cleanedContent.startsWith('{')) {
+          const jsonMatch = cleanedContent.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+          if (jsonMatch) {
+            cleanedContent = jsonMatch[1];
+          }
+        }
+        
         return JSON.parse(cleanedContent);
       } else {
         // Default to OpenAI
