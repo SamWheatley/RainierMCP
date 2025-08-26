@@ -80,10 +80,19 @@ async function generateResearchInsights(
           const jsonMatch = cleanedContent.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
           if (jsonMatch) {
             cleanedContent = jsonMatch[1];
+          } else {
+            // If no JSON found, return empty array for this insight type
+            console.warn("No valid JSON found in AI response, returning empty array:", textContent.substring(0, 100));
+            return [];
           }
         }
         
-        return JSON.parse(cleanedContent);
+        try {
+          return JSON.parse(cleanedContent);
+        } catch (parseError) {
+          console.warn("Failed to parse JSON, returning empty array:", cleanedContent.substring(0, 100));
+          return [];
+        }
       } else {
         // Default to OpenAI
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
@@ -109,6 +118,8 @@ async function generateResearchInsights(
 
     // Theme Detection Analysis
     const themePrompt = `
+IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
+
 Analyze the following research data and identify key themes, patterns, and insights. Focus on:
 1. Recurring topics and concepts
 2. Common user behaviors or pain points  
@@ -120,7 +131,7 @@ ${fileContent}
 
 ${conversationData}
 
-Return a JSON array of theme insights with this format:
+Return ONLY a JSON array of theme insights in this exact format:
 [{
   "type": "theme",
   "title": "Brief theme name",
@@ -129,7 +140,7 @@ Return a JSON array of theme insights with this format:
   "sources": ["relevant file or conversation names"]
 }]
 
-Limit to 3-5 most significant themes.`;
+Limit to 3-5 most significant themes. If no themes found, return exactly: []`;
 
     const themeData = await makeAIRequest(themePrompt, 1500, 0.3);
     const themeInsights = Array.isArray(themeData) ? themeData : (themeData.themes || themeData.insights || []);
@@ -143,6 +154,8 @@ Limit to 3-5 most significant themes.`;
 
     // Bias Detection Analysis
     const biasPrompt = `
+IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
+
 Analyze the following research data for potential biases, leading questions, or methodological concerns:
 1. Leading or loaded questions
 2. Sample bias or demographic gaps
@@ -152,7 +165,7 @@ Analyze the following research data for potential biases, leading questions, or 
 Research Data:
 ${fileContent}
 
-Return a JSON array of bias-related insights:
+Return ONLY a JSON array of bias-related insights in this exact format:
 [{
   "type": "bias",
   "title": "Brief bias concern",
@@ -161,7 +174,7 @@ Return a JSON array of bias-related insights:
   "sources": ["specific examples or files"]
 }]
 
-Look for subtle biases too - even minor concerns are valuable for improving research quality. If absolutely no biases found, return empty array.`;
+Look for subtle biases too - even minor concerns are valuable for improving research quality. If absolutely no biases found, return exactly: []`;
 
     const biasData = await makeAIRequest(biasPrompt, 1000, 0.2);
     const biasInsights = Array.isArray(biasData) ? biasData : (biasData.biases || biasData.insights || []);
@@ -175,6 +188,8 @@ Look for subtle biases too - even minor concerns are valuable for improving rese
 
     // Pattern Recognition Analysis
     const patternPrompt = `
+IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
+
 Analyze the following research data to identify behavioral patterns, trends, and recurring structures:
 1. Communication patterns and interaction styles
 2. Decision-making patterns and preferences  
@@ -185,7 +200,7 @@ Analyze the following research data to identify behavioral patterns, trends, and
 Research Data:
 ${fileContent}
 
-Return a JSON array of pattern insights:
+Return ONLY a JSON array of pattern insights in this exact format:
 [{
   "type": "pattern",
   "title": "Clear pattern name", 
@@ -194,7 +209,7 @@ Return a JSON array of pattern insights:
   "sources": ["specific data sources where pattern appears"]
 }]
 
-Focus on 2-4 most significant patterns that could inform strategy.`;
+Focus on 2-4 most significant patterns that could inform strategy. If no patterns found, return exactly: []`;
 
     const patternData = await makeAIRequest(patternPrompt, 1200, 0.3);
     const patternInsights = Array.isArray(patternData) ? patternData : (patternData.patterns || patternData.insights || []);
@@ -208,6 +223,8 @@ Focus on 2-4 most significant patterns that could inform strategy.`;
 
     // Recommendation Generation
     const recPrompt = `
+IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
+
 Based on the research analysis, provide actionable recommendations for Come Near's team:
 1. Research methodology improvements
 2. Product/service insights
@@ -217,7 +234,7 @@ Based on the research analysis, provide actionable recommendations for Come Near
 Research Data Summary:
 ${fileContent.substring(0, 2000)}...
 
-Return a JSON array of recommendations:
+Return ONLY a JSON array of recommendations in this exact format:
 [{
   "type": "recommendation",
   "title": "Actionable recommendation",
@@ -226,7 +243,7 @@ Return a JSON array of recommendations:
   "sources": ["supporting data sources"]
 }]
 
-Focus on 2-4 highest-impact recommendations.`;
+Focus on 2-4 highest-impact recommendations. If no recommendations found, return exactly: []`;
 
     const recData = await makeAIRequest(recPrompt, 1200, 0.4);
     const recommendations = Array.isArray(recData) ? recData : (recData.recommendations || recData.insights || []);
