@@ -33,7 +33,13 @@ async function generateResearchInsights(
           messages: [{ role: 'user', content: prompt }],
           temperature
         });
-        return JSON.parse((response.content[0] as any).text || '[]');
+        const textContent = (response.content[0] as any).text || '[]';
+        // Clean up potential markdown code blocks and other formatting
+        const cleanedContent = textContent
+          .replace(/```json\s*/gi, '')
+          .replace(/```\s*$/gi, '')
+          .trim();
+        return JSON.parse(cleanedContent);
       } else {
         // Default to OpenAI
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });

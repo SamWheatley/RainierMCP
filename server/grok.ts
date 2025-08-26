@@ -80,7 +80,12 @@ export async function generateResearchInsights(prompt: string): Promise<any[]> {
     });
 
     const content = response.choices[0].message.content || '[]';
-    const data = JSON.parse(content);
+    // Clean up potential markdown code blocks just in case
+    const cleanedContent = content
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*$/gi, '')
+      .trim();
+    const data = JSON.parse(cleanedContent);
     return Array.isArray(data) ? data : (data.insights || data.recommendations || []);
   } catch (error) {
     console.error("Grok AI analysis error:", error);
