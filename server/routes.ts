@@ -68,8 +68,6 @@ async function generateResearchInsights(
           temperature
         });
         const textContent = (response.content[0] as any).text || '[]';
-        console.log("Raw AI response:", textContent.substring(0, 200));
-        
         // Clean up potential markdown code blocks and other formatting
         let cleanedContent = textContent
           .replace(/```json\s*/gi, '')
@@ -79,28 +77,23 @@ async function generateResearchInsights(
           .replace(/[^}\]]*$/, '') // Remove any text after JSON ends
           .trim();
         
-        console.log("Cleaned content:", cleanedContent.substring(0, 200));
-        
         // If it still doesn't look like JSON, try to extract JSON from the response
         if (!cleanedContent.startsWith('[') && !cleanedContent.startsWith('{')) {
           const jsonMatch = cleanedContent.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
           if (jsonMatch) {
             cleanedContent = jsonMatch[1];
-            console.log("Extracted JSON from match:", cleanedContent.substring(0, 100));
           } else {
             // If no JSON found, return empty array for this insight type
-            console.warn("No valid JSON found in AI response, returning empty array. Full response:", textContent);
+            console.warn("No valid JSON found in AI response, returning empty array");
             return [];
           }
         }
         
         try {
           const parsed = JSON.parse(cleanedContent);
-          console.log("Successfully parsed JSON:", Array.isArray(parsed) ? `Array with ${parsed.length} items` : typeof parsed);
           return parsed;
         } catch (parseError) {
           console.warn("Failed to parse JSON:", parseError instanceof Error ? parseError.message : 'Unknown error');
-          console.warn("Attempted to parse:", cleanedContent);
           return [];
         }
       } else {
@@ -114,14 +107,11 @@ async function generateResearchInsights(
           temperature
         });
         const content = response.choices[0].message.content || '[]';
-        console.log("OpenAI response:", content.substring(0, 200));
         try {
           const parsed = JSON.parse(content);
-          console.log("OpenAI parsed successfully:", Array.isArray(parsed) ? `Array with ${parsed.length} items` : typeof parsed);
           return parsed;
         } catch (parseError) {
           console.warn("OpenAI JSON parse error:", parseError instanceof Error ? parseError.message : 'Unknown error');
-          console.warn("OpenAI content:", content);
           return [];
         }
       }
@@ -163,7 +153,6 @@ Limit to 3-5 most significant themes. If no themes found, return exactly: []`;
 
     const themeData = await makeAIRequest(themePrompt, 1500, 0.3);
     const themeInsights = Array.isArray(themeData) ? themeData : (themeData.themes || themeData.insights || []);
-    console.log("Theme insights generated:", themeInsights.length);
     
     insights.push(...themeInsights.map((insight: any) => ({
       ...insight,
@@ -198,7 +187,6 @@ Look for subtle biases too - even minor concerns are valuable for improving rese
 
     const biasData = await makeAIRequest(biasPrompt, 1000, 0.2);
     const biasInsights = Array.isArray(biasData) ? biasData : (biasData.biases || biasData.insights || []);
-    console.log("Bias insights generated:", biasInsights.length);
     
     insights.push(...biasInsights.map((insight: any) => ({
       ...insight,
@@ -234,7 +222,6 @@ Focus on 2-4 most significant patterns that could inform strategy. If no pattern
 
     const patternData = await makeAIRequest(patternPrompt, 1200, 0.3);
     const patternInsights = Array.isArray(patternData) ? patternData : (patternData.patterns || patternData.insights || []);
-    console.log("Pattern insights generated:", patternInsights.length);
     
     insights.push(...patternInsights.map((insight: any) => ({
       ...insight,
@@ -269,7 +256,6 @@ Focus on 2-4 highest-impact recommendations. If no recommendations found, return
 
     const recData = await makeAIRequest(recPrompt, 1200, 0.4);
     const recommendations = Array.isArray(recData) ? recData : (recData.recommendations || recData.insights || []);
-    console.log("Recommendation insights generated:", recommendations.length);
     
     insights.push(...recommendations.map((insight: any) => ({
       ...insight,
@@ -993,17 +979,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any)?.claims?.sub;
       const { dataset = 'all', model = 'openai' } = req.body;
       
-      console.log("=== INSIGHT GENERATION START ===");
-      console.log("User ID:", userId);
-      console.log("Dataset:", dataset);
-      console.log("Model:", model);
-      
       // Get user's files and conversations for analysis
       let files = await storage.getUploadedFilesByUser(userId);
       const threads = await storage.getChatThreadsByUser(userId);
-      
-      console.log("Files found:", files.length);
-      console.log("Threads found:", threads.length);
       
       // Filter files based on dataset selection
       if (dataset === 'segment7') {
@@ -1012,8 +990,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         files = files.filter(file => !file.shared);
       }
       // 'all' uses all files (both shared and personal)
-      
-      console.log("Files after filtering:", files.length);
       
       if (files.length === 0 && threads.length === 0) {
         const datasetName = dataset === 'segment7' ? 'Segment 7' : 
@@ -1024,9 +1000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate insights using AI analysis
-      console.log("Starting AI analysis...");
       const result = await generateResearchInsights(userId, files, threads, model, dataset);
-      console.log("AI analysis completed, insights generated:", result.insights.length);
       
       // Store insights in database
       for (const insight of result.insights) {
