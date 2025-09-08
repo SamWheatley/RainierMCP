@@ -1,0 +1,114 @@
+::sage:: — Come Near POC ingest (CN-only)
+Mission
+
+Operate entirely inside s3://cn-rainier-data-lake (us-east-1) to:
+
+ingest paired AWS Transcribe .json + minutes .txt files under uploads/,
+
+write normalized curated text for retrieval,
+
+emit a per-batch Manifest for audit/ops,
+
+no Parallax mirror during POC.
+
+Constraints
+
+Respect CN data policy: no cross-account copies; keep all artifacts in CN bucket.
+
+Use CN-provided programmatic creds (stored only as Replit Secrets).
+
+Assume bucket default encryption/KMS as configured by CN.
+
+Replit setup
+
+Secrets (names fixed; values from Sam’s message in this thread):
+
+AWS_ACCESS_KEY_ID_RAINIER
+
+AWS_SECRET_ACCESS_KEY_RAINIER
+
+AWS_DEFAULT_REGION=us-east-1
+
+PARTNER_BUCKET=cn-rainier-data-lake
+
+Dependency:
+
+boto3 (pin latest stable we already used)
+
+S3 layout (CN bucket)
+uploads/                # source pairs: *.json (Transcribe) + *.txt (minutes)
+curated/                # normalized minutes: *.norm.txt
+manifests/dt=YYYY-MM-DD/  # per-batch JSON manifests (partition-friendly)
+parallax/health/        # health check write path
+
+Operational flow
+
+Health check
+
+List bucket; write parallax/health/healthcheck.txt with a timestamp.
+
+Discovery
+
+Walk uploads/ and map sibling pairs {base}.json + {base}.txt.
+
+Curate
+
+For each .txt, produce normalized UTF-8 text (trim, collapse whitespace).
+
+Write to curated/{base}.norm.txt with tags: project=come-near, source=transcribe, schema_version=1.
+
+Manifest
+
+For each batch, write manifests/dt=YYYY-MM-DD/ingest-<ISO8601>.json containing:
+
+schema_version (int, start at 1)
+
+batch_id (e.g., ingest-<ISO8601Z>)
+
+dt (YYYY-MM-DD)
+
+source_bucket = cn-rainier-data-lake
+
+source_prefix (e.g., uploads/... if known)
+
+ingester {name:"parallax-ingester", version:"0.1.0"}
+
+entries[] with one item per file:
+
+key, type (aws_transcribe_json or minutes_txt)
+
+size_bytes, checksum (sha256:<hex>), content_type
+
+pii (start with "low"), status ("ingested")
+
+For minutes: curated_key, curated_checksum, curated_size_bytes
+
+Idempotence
+
+Safe to re-run; don’t duplicate curated outputs if identical (optional check by ETag/sha256).
+
+Acceptance criteria (green = done)
+
+Health file present at parallax/health/healthcheck.txt.
+
+For at least one pair in uploads/, there exists:
+
+curated/{base}.norm.txt with tags present,
+
+a manifest under manifests/dt=<today>/ingest-<ts>.json referencing both source files and curated output.
+
+No writes outside cn-rainier-data-lake. No secrets logged.
+
+Observability & guardrails
+
+Console logs only: counts and key paths; never print credentials or file contents.
+
+If AccessDenied/KMS errors occur, report the failing key path; do not retry in a tight loop.
+
+If a .json exists without a matching .txt (or vice versa), skip and log a warning; do not write partial curated/manifest entries for that base.
+
+Optional (when Garth enables)
+
+Glue/Athena: Manifests are partitioned by dt, ready for a cn_rainier_lake.manifests_v1 table and an Athena workgroup. No code changes required.
+
+— End of brief.
