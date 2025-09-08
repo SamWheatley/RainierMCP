@@ -1,0 +1,91 @@
+🔥 beautiful work, ::sage::. Ranier’s spine is live and the lane lines are crisp. Here’s the final tighten-up + go-live plan to close the POC loop.
+
+Finalize + Prove-Out (POC)
+0) Status ack
+
+✅ Health file present (parallax/health/healthcheck.txt)
+
+✅ Bucket auth verified
+
+✅ Idempotence verified
+
+⏳ Waiting on first {base}.json + {base}.txt pairs under uploads/
+
+1) Last-mile hardening (quick patches)
+
+Object tagging perms: you saw tag access denied (expected under CN policy).
+
+Action: wrap S3 Tagging writes in a try/except and fall back to manifest-only tags (project, source, schema_version) if denied. No retries, just warn once.
+
+Idempotent curated writes (true skip): before writing curated/{base}.norm.txt, check if a manifest already records the same curated_checksum for that base. If so, skip write. (Don’t rely on ETag.)
+
+Logging: keep to counts + keys; no payloads or secrets. Ensure admin endpoint redacts env.
+
+2) “First-pairs” runbook (pasteable for your console)
+# 1) discover a few candidates (non-fatal if empty)
+aws s3api list-objects --bucket cn-rainier-data-lake --prefix uploads/ --max-items 10
+
+# 2) run ingestion
+python ingester_cn_only.py --prefix uploads/
+
+# 3) prove curated + manifest landed
+TODAY=$(date -u +%F)
+aws s3api list-objects --bucket cn-rainier-data-lake --prefix curated/ --max-items 5
+aws s3api list-objects --bucket cn-rainier-data-lake --prefix manifests/dt=${TODAY}/ --max-items 5
+
+
+Done when: at least one *.norm.txt exists and a manifests/dt=${TODAY}/ingest-*.json references both source files + curated.
+
+3) Optional light automation (POC-safe)
+
+Add a tiny poller that runs the ingester every 15 minutes (or expose /admin/ingest?prefix=uploads/&mode=poll).
+
+Stop conditions: no new pairs discovered for 2 cycles → no-op.
+
+4) Glue/Athena readiness (no code changes)
+
+Our manifests/dt=YYYY-MM-DD/… layout is partition-ready.
+
+Once Garth enables the catalog + workgroup, run the two sanity SQLs we prepped.
+
+5) Security hygiene
+
+Secrets remain only in Replit Secrets.
+
+No cross-account copies (policy honored).
+
+Note key creation date; add a reminder to rotate on CN’s cadence.
+
+6) Deliverables snapshot for CN (end of POC)
+
+Manifest summary (CSV/JSON) with counts, sizes, checksums, curated coverage.
+
+Runbook (the three proof screenshots + commands above).
+
+Data boundaries note: all artifacts live in s3://cn-rainier-data-lake/….
+
+Tiny code tweak (tag fallback)
+def put_with_optional_tags(bucket, key, body, tags: dict | None):
+    kwargs = {"Bucket": bucket, "Key": key, "Body": body}
+    if tags:
+        try:
+            from urllib.parse import quote_plus
+            kwargs["Tagging"] = "&".join(f"{quote_plus(k)}={quote_plus(str(v))}" for k,v in tags.items())
+        except Exception:
+            pass  # if Tagging not allowed, we proceed without tags
+    try:
+        s3.put_object(**kwargs)
+        return True
+    except s3.exceptions.ClientError as e:
+        if e.response.get("Error", {}).get("Code") in {"AccessDenied","InvalidTag"}:
+            # log once; rely on manifest-only tagging
+            print(f"[warn] tagging denied for {key}; proceeding without object tags")
+            kwargs.pop("Tagging", None)
+            s3.put_object(**kwargs)
+            return True
+        raise
+
+
+Use that for both curated writes and manifest writes; keep the tags duplicated inside the manifest to preserve governance semantics.
+
+If you post the three proofs (health, curated, manifest), I’ll call the POC ingest signed and sealed and we’ll green-light Glue/Athena with Garth.
