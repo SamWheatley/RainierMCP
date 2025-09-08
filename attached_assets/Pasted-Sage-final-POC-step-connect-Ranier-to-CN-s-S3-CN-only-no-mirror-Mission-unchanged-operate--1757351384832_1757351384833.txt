@@ -1,0 +1,87 @@
+Sage — final POC step: connect Ranier to CN’s S3 (CN-only, no mirror)
+
+Mission (unchanged): operate entirely inside s3://cn-rainier-data-lake (us-east-1) to (1) ingest paired Transcribe .json + minutes .txt under uploads/, (2) write normalized curated/ text, and (3) emit per-batch manifests/. Audit-ready, idempotent, no cross-account copies.
+
+Answers to your questions
+
+AWS integration / creds: Use the Replit Secrets we’ve defined (already planned). No “search tool” needed. Names:
+
+AWS_ACCESS_KEY_ID_RAINIER
+
+AWS_SECRET_ACCESS_KEY_RAINIER
+
+AWS_DEFAULT_REGION=us-east-1
+
+PARTNER_BUCKET=cn-rainier-data-lake
+
+Placement: Integrate as a small module inside Ranier with two entry points:
+
+CLI: python ingester_cn_only.py --prefix uploads/
+
+Admin endpoint (optional): POST /admin/ingest → triggers the same function (idempotent).
+
+Normalization (v0 spec): keep it conservative and retrieval-friendly.
+
+UTF-8 decode + Unicode NFC normalization
+
+Strip BOM/zero-width chars, collapse multi-space to single space
+
+Normalize line breaks to \n, condense 2+ blank lines to one
+
+Preserve any speaker labels/timestamps as-is (don’t delete semantic cues)
+
+No lowercasing, lemmatization, or punctuation stripping in v0
+
+Output lives at curated/{base}.norm.txt (UTF-8), tagged:
+
+project=come-near, source=transcribe, schema_version=1
+
+S3 layout (CN bucket only)
+uploads/                         # source pairs: *.json + *.txt
+curated/                         # normalized minutes: *.norm.txt
+manifests/dt=YYYY-MM-DD/         # partition-friendly batch manifests
+parallax/health/                 # simple write-check
+
+Manifests (v1)
+
+Path: manifests/dt=YYYY-MM-DD/ingest-<ISO8601Z>.json
+
+Fields: schema_version, batch_id, dt, source_bucket, source_prefix, ingester{name,version}, and entries[] (for each file: key, type, size_bytes, checksum=sha256:<hex>, content_type, pii, status; minutes entries also include curated_key, curated_checksum, curated_size_bytes).
+
+Run order
+
+Health check: list the bucket; write parallax/health/healthcheck.txt (timestamped).
+
+Discovery: walk uploads/, pair {base}.json with {base}.txt. Skip singletons with a warning.
+
+Curate: produce curated/{base}.norm.txt per v0 spec + tags.
+
+Manifest: write the batch manifest under the dt= partition.
+
+Idempotence: if a curated file for a base exists with the same SHA256, skip rewrite.
+
+Observability & guardrails
+
+Log counts and S3 keys only; never log secrets or file contents.
+
+On AccessDenied/KMS errors, log the failing key and stop; don’t tight-loop.
+
+No writes outside cn-rainier-data-lake. No cross-account traffic.
+
+Definition of Done (POC)
+
+✅ parallax/health/healthcheck.txt exists.
+
+✅ At least one .json+.txt pair produces a curated/*.norm.txt.
+
+✅ Manifest present at manifests/dt=<today>/ingest-<ts>.json referencing both sources and curated.
+
+✅ Re-runs are clean (no duplicate work, checksums stable).
+
+(Optional, when Garth enables)
+
+Glue/Athena: our dt= layout is partition-ready; no code changes required.
+
+Admin endpoint: wire POST /admin/ingest to the same function for on-demand runs.
+
+If any pathing in uploads/ differs from expectation, auto-discover and adapt; don’t assume a fixed sub-structure. Proceed.
