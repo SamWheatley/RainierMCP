@@ -1,0 +1,82 @@
+Sage — looks great. Let’s lock it in with a quick prove-out + ops polish.
+
+1) Smoke tests (pasteable)
+# list a few sources (OK if empty until uploads land)
+aws s3api list-objects --bucket cn-rainier-data-lake --prefix uploads/ --max-items 5
+
+# health check file should exist
+aws s3 ls s3://cn-rainier-data-lake/parallax/health/
+
+# run the ingester on uploads/
+python ingester_cn_only.py --prefix uploads/
+
+# confirm curated outputs (expect *.norm.txt)
+aws s3api list-objects --bucket cn-rainier-data-lake --prefix curated/ --max-items 5
+
+# confirm manifest for today (partitioned)
+TODAY=$(date -u +%F)
+aws s3api list-objects --bucket cn-rainier-data-lake --prefix manifests/dt=${TODAY}/ --max-items 5
+
+
+Green if: curated files appear, and at least one manifests/dt=YYYY-MM-DD/ingest-<ts>.json exists.
+
+2) Quick integrity checks
+# verify manifest JSON structure (jq installed)
+aws s3 cp s3://cn-rainier-data-lake/manifests/dt=${TODAY}/$( \
+  aws s3api list-objects --bucket cn-rainier-data-lake \
+    --prefix manifests/dt=${TODAY}/ --query 'Contents[-1].Key' --output text \
+) - | jq '{batch_id, dt, entries_count: (.entries|length)}'
+
+# spot-check that every minutes_txt has a curated_key
+aws s3 cp s3://cn-rainier-data-lake/manifests/dt=${TODAY}/$( \
+  aws s3api list-objects --bucket cn-rainier-data-lake \
+    --prefix manifests/dt=${TODAY}/ --query 'Contents[-1].Key' --output text \
+) - | jq -r '.entries[] | select(.type=="minutes_txt" and (.curated_key==null or .curated_key=="")) | .key' \
+| sed -n '1,5p'
+
+3) Idempotence (skeptical pass)
+
+Run the same ingest twice back-to-back. Second run should:
+
+skip rewrites when SHA256 unchanged,
+
+emit a new manifest (new batch_id) referencing the same sources.
+
+python ingester_cn_only.py --prefix uploads/
+python ingester_cn_only.py --prefix uploads/
+
+4) Ops polish (fast, safe)
+
+Logs: keep paths + counts only; no payloads or secrets.
+
+Timeouts: current 10-min admin timeout is good; on AccessDenied/KMS, fail fast with the offending key.
+
+Tags on curated + manifests: project=come-near, source=transcribe, schema_version=1 (already in code—double-check on the objects).
+
+5) Ready for Garth’s switch
+
+Our layout is partition-ready (manifests/dt=YYYY-MM-DD/). When he enables Glue/Athena, we won’t need code changes. We’ll just:
+
+add today’s partition if his DDL uses a partition column,
+
+run the two sanity SQLs we shared.
+
+6) Security hygiene
+
+Secrets live only in Replit Secrets (confirmed).
+
+Rotate the rainier keys on CN’s cadence; note creation date in the runbook so we don’t forget.
+
+No cross-account copies (POC rule) — verified by design.
+
+7) Done = these three screenshots
+
+aws s3 ls s3://cn-rainier-data-lake/parallax/health/ showing healthcheck.txt
+
+aws s3api list-objects --bucket cn-rainier-data-lake --prefix curated/ with at least one *.norm.txt
+
+aws s3api list-objects --bucket cn-rainier-data-lake --prefix manifests/dt=${TODAY}/ with a manifest key
+
+When those are posted, Ranier’s POC ingest is officially go. From there, we can flip on Glue/Athena with Garth and start querying manifests.
+
+ChatGPT can make mistakes. OpenAI doesn't use Parallax W
