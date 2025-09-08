@@ -1049,6 +1049,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // S3 Data Lake Ingestion Admin Endpoint
+  app.post('/admin/ingest', guestModeMiddleware, async (req: any, res) => {
+    try {
+      const { spawn } = require('child_process');
+      const prefix = req.body.prefix || 'uploads/';
+      
+      console.log(`Starting S3 ingestion for prefix: ${prefix}`);
+      
+      // Spawn Python ingester process
+      const ingester = spawn('python', ['ingester_cn_only.py', '--prefix', prefix], {
+        env: process.env,
+        stdio: 'pipe'
+      });
+      
+      let output = '';
+      let errorOutput = '';
+      
+      ingester.stdout.on('data', (data: Buffer) => {
+        const text = data.toString();
+        output += text;
+        console.log(`[Ingester] ${text.trim()}`);
+      });
+      
+      ingester.stderr.on('data', (data: Buffer) => {
+        const text = data.toString();
+        errorOutput += text;
+        console.error(`[Ingester Error] ${text.trim()}`);
+      });
+      
+      ingester.on('close', (code: number) => {
+        if (code === 0) {
+          console.log('S3 ingestion completed successfully');
+          res.json({ 
+            success: true, 
+            message: 'Ingestion completed successfully',
+            output: output.trim()
+          });
+        } else {
+          console.error(`S3 ingestion failed with code ${code}`);
+          res.status(500).json({ 
+            success: false, 
+            message: `Ingestion failed with exit code ${code}`,
+            error: errorOutput.trim(),
+            output: output.trim()
+          });
+        }
+      });
+      
+      // Handle timeout (10 minutes max)
+      setTimeout(() => {
+        ingester.kill();
+        res.status(408).json({ 
+          success: false, 
+          message: 'Ingestion timed out after 10 minutes'
+        });
+      }, 10 * 60 * 1000);
+      
+    } catch (error: any) {
+      console.error("Error running S3 ingestion:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to start ingestion process",
+        error: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
