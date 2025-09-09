@@ -8,6 +8,7 @@ import {
   text,
   boolean,
   real,
+  integer,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -167,3 +168,116 @@ export type InsertChatAttachment = z.infer<typeof insertChatAttachmentSchema>;
 export type ChatAttachment = typeof chatAttachments.$inferSelect;
 export type InsertUploadedFile = z.infer<typeof insertUploadedFileSchema>;
 export type UploadedFile = typeof uploadedFiles.$inferSelect;
+
+// Reports table for storing generated reports
+export const reports = pgTable("reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  type: varchar("type", { enum: ["monthly", "custom", "automated"] }).notNull(),
+  status: varchar("status", { enum: ["generating", "completed", "failed"] }).notNull().default("generating"),
+  dateRange: jsonb("date_range").$type<{ start: string; end: string }>().notNull(),
+  s3FilesAnalyzed: jsonb("s3_files_analyzed").$type<string[]>().default([]),
+  totalInsightsCount: integer("total_insights_count").notNull().default(0),
+  confidenceThreshold: real("confidence_threshold").notNull().default(0.7),
+  analysisParameters: jsonb("analysis_parameters").$type<{
+    models: string[];
+    includeTypes: string[];
+    focusThemes?: string[];
+  }>().notNull(),
+  reportUrl: varchar("report_url"), // For downloadable report files
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Report insights table for linking insights to specific reports  
+export const reportInsights = pgTable("report_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportId: varchar("report_id").notNull().references(() => reports.id, { onDelete: "cascade" }),
+  insightId: varchar("insight_id").notNull().references(() => researchInsights.id, { onDelete: "cascade" }),
+  insightTitle: varchar("insight_title").notNull(),
+  insightContent: text("insight_content").notNull(),
+  confidenceScore: real("confidence_score").notNull(),
+  keyQuotes: jsonb("key_quotes").$type<Array<{
+    text: string;
+    speaker: string;
+    source: string;
+  }>>().default([]),
+  sourceFiles: jsonb("source_files").$type<string[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Trend metrics table for predictive intelligence
+export const trendMetrics = pgTable("trend_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  theme: varchar("theme").notNull(),
+  period: varchar("period").notNull(), // "2025-09", "2025-Q3", etc.
+  value: real("value").notNull(), // percentage or count
+  previousValue: real("previous_value"),
+  changePercentage: real("change_percentage"),
+  trendDirection: varchar("trend_direction", { enum: ["up", "down", "stable"] }).notNull(),
+  confidence: real("confidence").notNull(),
+  sampleSize: integer("sample_size").notNull(),
+  sourceFiles: jsonb("source_files").$type<string[]>().default([]),
+  metadata: jsonb("metadata").$type<{
+    category: string;
+    subcategory?: string;
+    detectionMethod: string;
+    alertThreshold?: number;
+  }>().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Pull quotes table for storing impactful participant quotes
+export const pullQuotes = pgTable("pull_quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  text: text("text").notNull(),
+  speaker: varchar("speaker").notNull(),
+  sourceFile: varchar("source_file").notNull(),
+  theme: varchar("theme").notNull(),
+  sentiment: varchar("sentiment", { enum: ["positive", "negative", "neutral"] }).notNull(),
+  confidenceScore: real("confidence_score").notNull(),
+  contextBefore: text("context_before"),
+  contextAfter: text("context_after"),
+  tags: text("tags").array().default([]),
+  isHighlighted: boolean("is_highlighted").default(false),
+  usageCount: integer("usage_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas for new tables
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertReportInsightSchema = createInsertSchema(reportInsights).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTrendMetricSchema = createInsertSchema(trendMetrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPullQuoteSchema = createInsertSchema(pullQuotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types for new tables
+export type Report = typeof reports.$inferSelect;
+export type InsertReport = z.infer<typeof insertReportSchema>;
+export type ReportInsight = typeof reportInsights.$inferSelect;
+export type InsertReportInsight = z.infer<typeof insertReportInsightSchema>;
+export type TrendMetric = typeof trendMetrics.$inferSelect;
+export type InsertTrendMetric = z.infer<typeof insertTrendMetricSchema>;
+export type PullQuote = typeof pullQuotes.$inferSelect;
+export type InsertPullQuote = z.infer<typeof insertPullQuoteSchema>;
