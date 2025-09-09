@@ -117,8 +117,8 @@ async function generateResearchInsights(
       }
     };
     
-    // Prepare content for AI analysis (load S3 content on-demand)
-    const fileContents: string[] = [];
+    // Prepare content for AI analysis with chunking to handle token limits
+    const fileContents: Array<{name: string, content: string, isS3: boolean, s3Key?: string}> = [];
     
     for (const file of files) {
       if ((file as any).isS3File && (file as any).s3Key) {
@@ -126,20 +126,56 @@ async function generateResearchInsights(
         try {
           const s3Service = new (await import('./s3ServiceOptimized')).OptimizedS3TranscriptService();
           const content = await s3Service.getFileContent((file as any).s3Key);
-          fileContents.push(`File: ${file.originalName}\n${content}`);
+          // Truncate very long files to prevent token overflow
+          const truncatedContent = content.length > 15000 ? content.substring(0, 15000) + '\n[Content truncated...]' : content;
+          fileContents.push({
+            name: file.originalName, 
+            content: truncatedContent,
+            isS3: true,
+            s3Key: (file as any).s3Key
+          });
           console.log(`✅ Loaded S3 content for ${file.originalName}, length: ${content.length}`);
         } catch (error) {
           console.error(`❌ Error loading S3 content for ${file.originalName}:`, error);
-          fileContents.push(`File: ${file.originalName}\n[Content unavailable]`);
+          fileContents.push({
+            name: file.originalName,
+            content: '[Content unavailable]',
+            isS3: true
+          });
         }
       } else if (file.extractedText) {
         // Use existing extracted text for uploaded files
-        fileContents.push(`File: ${file.originalName}\n${file.extractedText}`);
+        fileContents.push({
+          name: file.originalName,
+          content: file.extractedText,
+          isS3: false
+        });
       }
     }
     
-    const fileContent = fileContents.join('\n\n');
+    // Create manageable content chunks to avoid token limits
+    const maxContentLength = 180000; // Leave room for prompt text
+    let currentLength = 0;
+    const selectedFiles: typeof fileContents = [];
+    
+    for (const fileData of fileContents) {
+      const fileText = `File: ${fileData.name}\n${fileData.content}\n\n`;
+      if (currentLength + fileText.length > maxContentLength && selectedFiles.length > 0) {
+        console.log(`⚠️ Truncating analysis at ${selectedFiles.length} files to stay within token limit`);
+        break;
+      }
+      selectedFiles.push(fileData);
+      currentLength += fileText.length;
+    }
+    
+    const fileContent = selectedFiles.map(f => `File: ${f.name}\n${f.content}`).join('\n\n');
     const conversationData = threads.map(t => `Thread: ${t.title}`).join('\n');
+    
+    // Store file metadata for source links
+    const fileMetadata = selectedFiles.reduce((acc, f) => {
+      acc[f.name] = { isS3: f.isS3, s3Key: f.s3Key };
+      return acc;
+    }, {} as Record<string, {isS3: boolean, s3Key?: string}>);
     
     if (!fileContent && !conversationData) {
       return insights;
