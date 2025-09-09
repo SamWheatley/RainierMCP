@@ -4,6 +4,7 @@ export interface S3File {
   id: string;
   title: string;
   extractedText: string;
+  shared?: boolean; // For Segment 7 filtering in research insights
   metadata: {
     size: number;
     lastModified: Date;
@@ -78,10 +79,16 @@ export class OptimizedS3TranscriptService {
         const participants = this.extractParticipants(fileName);
         const location = this.extractLocation(fileName);
 
+        // Mark Segment 7 files as shared for research insights filtering
+        const isSegment7 = fileName.toLowerCase().includes('segment 7') || 
+                          fileName.toLowerCase().includes('segment_7') ||
+                          studyType.includes('Segment 7');
+
         files.push({
           id: `s3-${obj.Key}`,
           title: fileName,
           extractedText: `Research transcript from ${studyType}. ${participants.length > 0 ? `Participants: ${participants.join(', ')}` : ''} Click to analyze with AI.`,
+          shared: isSegment7, // Enable Segment 7 filtering for research insights
           metadata: {
             size: obj.Size || 0,
             lastModified: obj.LastModified || new Date(),
