@@ -44,7 +44,7 @@ export default function ResearchInsights() {
   const [editingInsight, setEditingInsight] = useState<{ id: string; title: string } | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [datasetFilter, setDatasetFilter] = useState<'all' | 'segment7' | 'personal'>('all');
-  const [selectedModel, setSelectedModel] = useState<'openai' | 'anthropic' | 'grok'>('anthropic');
+  const selectedModel = 'openai'; // Fixed to OpenAI for optimal performance
 
   const { toast } = useToast();
 
@@ -315,8 +315,8 @@ export default function ResearchInsights() {
             <CardTitle className="text-lg">Generate New Insights</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
+            <div className="flex justify-center">
+              <div className="w-full max-w-md">
                 <label className="text-sm font-medium mb-2 block">Data Source</label>
                 <Select 
                   value={datasetFilter} 
@@ -329,22 +329,6 @@ export default function ResearchInsights() {
                     <SelectItem value="all">All Data</SelectItem>
                     <SelectItem value="segment7">Segment 7 Only</SelectItem>
                     <SelectItem value="personal">Personal Files Only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">AI Model</label>
-                <Select 
-                  value={selectedModel} 
-                  onValueChange={(value: 'openai' | 'anthropic' | 'grok') => setSelectedModel(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select AI model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="anthropic">Anthropic Claude</SelectItem>
-                    <SelectItem value="openai">OpenAI GPT</SelectItem>
-                    <SelectItem value="grok">xAI Grok</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
