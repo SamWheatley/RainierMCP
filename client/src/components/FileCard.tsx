@@ -163,7 +163,7 @@ export default function FileCard({ file, onAskQuestions, isSelected = false, onT
         )}
         
         <div className="flex items-center justify-between text-xs text-gray-600 mb-4">
-          <span>Uploaded {formatDate(file.createdAt! as string)}</span>
+          <span>Uploaded {formatDate(file.createdAt!.toString())}</span>
           <Badge 
             variant={file.isProcessed ? "default" : "secondary"}
             className={file.isProcessed ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
