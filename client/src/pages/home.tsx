@@ -10,22 +10,26 @@ import type { UploadedFile } from "@shared/schema";
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'ask' | 'explore' | 'insights' | 'reports'>('insights');
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [, setLocation] = useLocation();
 
   const handleThreadSelect = (threadId: string) => {
     setCurrentThreadId(threadId);
+    setSelectedFile(null); // Clear selected file when switching to existing thread
     setActiveTab('ask');
   };
 
   const handleNewThread = () => {
     setCurrentThreadId(null);
+    setSelectedFile(null); // Clear selected file for new thread
     setActiveTab('ask');
   };
 
   const handleAskAboutFile = (file: UploadedFile) => {
-    // Switch to ask tab and potentially create a new thread
+    // Switch to ask tab and start new thread with specific file
     setActiveTab('ask');
     setCurrentThreadId(null);
+    setSelectedFile(file); // Pass the selected file to chat
   };
 
   return (
@@ -44,6 +48,8 @@ export default function Home() {
             <Chat 
               threadId={currentThreadId}
               onThreadCreated={setCurrentThreadId}
+              selectedFile={selectedFile}
+              onFileLoaded={() => setSelectedFile(null)}
             />
           </div>
         ) : activeTab === 'insights' ? (

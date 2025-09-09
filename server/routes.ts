@@ -635,17 +635,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (attachments && attachments.length > 0) {
         for (const attachment of attachments) {
           try {
-            const objectStorageService = new ObjectStorageService();
-            const objectPath = objectStorageService.normalizeObjectEntityPath(attachment.uploadURL);
-            const fileContent = await objectStorageService.getObjectEntityFile(objectPath);
+            let rawContent = "";
             
-            const chunks: Buffer[] = [];
-            const stream = fileContent.createReadStream();
-            for await (const chunk of stream) {
-              chunks.push(chunk);
+            // Check if this is an S3 file (ID starts with 's3-')
+            if (attachment.uploadURL.startsWith('s3-')) {
+              // Handle S3 files directly using S3Service
+              const s3Service = new OptimizedS3TranscriptService();
+              const transcripts = await s3Service.getCuratedTranscripts();
+              const s3File = transcripts.find(t => t.id === attachment.uploadURL);
+              
+              if (s3File) {
+                rawContent = await s3Service.getFileContent(s3File.metadata.s3Key!);
+                console.log(`✅ Loaded S3 file ${attachment.originalName}: ${rawContent.length} characters`);
+              } else {
+                console.error(`S3 file not found: ${attachment.uploadURL}`);
+                continue;
+              }
+            } else {
+              // Handle regular uploaded files via object storage
+              const objectStorageService = new ObjectStorageService();
+              const objectPath = objectStorageService.normalizeObjectEntityPath(attachment.uploadURL);
+              const fileContent = await objectStorageService.getObjectEntityFile(objectPath);
+              
+              const chunks: Buffer[] = [];
+              const stream = fileContent.createReadStream();
+              for await (const chunk of stream) {
+                chunks.push(chunk);
+              }
+              
+              rawContent = Buffer.concat(chunks).toString('utf-8');
+              console.log(`✅ Loaded uploaded file ${attachment.originalName}: ${rawContent.length} characters`);
             }
-            
-            const rawContent = Buffer.concat(chunks).toString('utf-8');
             
             // For very large files, just use first part without AI extraction to avoid token limits
             let extractedText = "";

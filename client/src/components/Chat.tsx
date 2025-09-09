@@ -10,14 +10,16 @@ import { NotebookPen, Paperclip, Brain, FileText, X, Globe, Shield, MessageSquar
 import ChatMessage from "./ChatMessage";
 import ChatAttachmentUploader from "./ChatAttachmentUploader";
 import { useToast } from "@/hooks/use-toast";
-import type { ChatMessage as ChatMessageType, ChatAttachment } from "@shared/schema";
+import type { ChatMessage as ChatMessageType, ChatAttachment, UploadedFile } from "@shared/schema";
 
 interface ChatProps {
   threadId: string | null;
   onThreadCreated: (threadId: string) => void;
+  selectedFile?: UploadedFile | null;
+  onFileLoaded?: () => void;
 }
 
-export default function Chat({ threadId, onThreadCreated }: ChatProps) {
+export default function Chat({ threadId, onThreadCreated, selectedFile, onFileLoaded }: ChatProps) {
   const [message, setMessage] = useState("");
   const [showSources, setShowSources] = useState(true);
   const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic' | 'grok'>('anthropic');
@@ -29,6 +31,35 @@ export default function Chat({ threadId, onThreadCreated }: ChatProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Auto-load selected file when provided
+  useEffect(() => {
+    if (selectedFile && !threadId) {
+      // For S3 files, we need to handle them differently than uploaded files
+      // S3 files don't have an uploadURL but are directly accessible via their content
+      // We'll pass the file ID so the backend can load it from S3 directly
+      const fileAttachment = {
+        id: selectedFile.id,
+        originalName: selectedFile.originalName,
+        mimeType: selectedFile.mimeType,
+        size: selectedFile.size,
+        uploadURL: selectedFile.id.startsWith('s3-') ? selectedFile.id : selectedFile.objectPath,
+      };
+      
+      setPendingAttachments([fileAttachment]);
+      
+      // Set a helpful initial message
+      setMessage(`I'd like to analyze the research file "${selectedFile.originalName}". What insights can you provide?`);
+      
+      // Call onFileLoaded to clear the selected file
+      onFileLoaded?.();
+      
+      toast({
+        title: "File Ready for Analysis",
+        description: `${selectedFile.originalName} has been loaded. Ask your questions!`,
+      });
+    }
+  }, [selectedFile, threadId, onFileLoaded, toast]);
 
   const { data: messagesData, isLoading } = useQuery({
     queryKey: ['/api/threads', threadId, 'messages'],
