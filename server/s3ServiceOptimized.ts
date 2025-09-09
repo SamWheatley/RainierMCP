@@ -20,7 +20,7 @@ export class OptimizedS3TranscriptService {
   private bucketName: string;
 
   constructor() {
-    this.bucketName = process.env.PARTNER_BUCKET || 'cn2025persona';
+    this.bucketName = process.env.PARTNER_BUCKET || 'cn-rainier-data-lake';
     this.s3 = new S3Client({
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID_RAINIER!,
@@ -34,10 +34,10 @@ export class OptimizedS3TranscriptService {
     try {
       console.log('🔍 Fetching S3 transcript metadata...');
       
-      // List all curated files (metadata only for fast loading)
+      // List all transcript files (metadata only for fast loading)
       const listCommand = new ListObjectsV2Command({
         Bucket: this.bucketName,
-        Prefix: 'curated/',
+        Prefix: 'Transcripts/',
         MaxKeys: 1000
       });
       const listResponse = await this.s3.send(listCommand);
@@ -55,7 +55,7 @@ export class OptimizedS3TranscriptService {
       for (const obj of listResponse.Contents) {
         if (!obj.Key || !obj.Key.endsWith('.norm.txt')) continue;
 
-        const fileName = obj.Key.replace('curated/', '').replace('.norm.txt', '');
+        const fileName = obj.Key.replace('Transcripts/', '').replace('.norm.txt', '');
         
         // Determine study type and metadata from filename
         const studyType = this.categorizeStudyType(fileName);
@@ -169,7 +169,7 @@ export class OptimizedS3TranscriptService {
       originalName: s3File.title,
       mimeType: 'text/plain',
       size: s3File.metadata.size,
-      objectPath: `s3://curated/${s3File.title}.norm.txt`,
+      objectPath: `s3://Transcripts/${s3File.title}.norm.txt`,
       isProcessed: true,
       extractedText: s3File.extractedText,
       tags: [s3File.metadata.studyType, s3File.metadata.location].filter(Boolean),
