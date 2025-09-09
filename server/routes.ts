@@ -812,6 +812,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Guest user - only get shared files
         files = await storage.getSharedFiles();
       }
+
+      // Add S3 curated transcript files
+      try {
+        const { S3TranscriptService } = await import('./s3Service');
+        const s3Service = new S3TranscriptService();
+        const s3Files = await s3Service.getCuratedTranscripts();
+        
+        // Convert S3 files to FileData format and add to results
+        const s3FileData = s3Files.map(f => s3Service.s3FileToFileData(f));
+        files.push(...s3FileData);
+        
+      } catch (s3Error) {
+        console.error("Error fetching S3 files:", s3Error);
+        // Continue without S3 files if there's an error
+      }
+
       res.json({ files });
     } catch (error) {
       console.error("Error fetching files:", error);

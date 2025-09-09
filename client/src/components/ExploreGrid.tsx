@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Upload } from "lucide-react";
+import { Search, Upload, Brain, Check } from "lucide-react";
 import UploadZone from "./UploadZone";
 import FileCard from "./FileCard";
 import type { UploadedFile } from "@shared/schema";
@@ -18,6 +18,8 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -52,11 +54,91 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
     setShowUpload(false);
   };
 
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFiles(prev => 
+      prev.includes(fileId) 
+        ? prev.filter(id => id !== fileId)
+        : [...prev, fileId]
+    );
+  };
+
+  const selectAllFiles = () => {
+    const allFileIds = [...filteredSharedFiles, ...filteredPersonalFiles].map(f => f.id);
+    setSelectedFiles(allFileIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedFiles([]);
+  };
+
+  const generateInsightsMutation = useMutation({
+    mutationFn: async (fileIds: string[]) => {
+      return await apiRequest('POST', '/api/research-insights/generate', {
+        fileIds,
+        dataset: 'selected',
+        model: 'openai'
+      });
+    },
+    onSuccess: (data) => {
+      setIsGeneratingInsights(false);
+      setSelectedFiles([]);
+      // Navigate to insights tab to show results
+      window.location.hash = '#insights';
+    },
+    onError: (error) => {
+      setIsGeneratingInsights(false);
+      console.error('Failed to generate insights:', error);
+    }
+  });
+
+  const handleGenerateInsights = () => {
+    if (selectedFiles.length === 0) return;
+    setIsGeneratingInsights(true);
+    generateInsightsMutation.mutate(selectedFiles);
+  };
+
   return (
     <div className="space-y-6">
       {/* Search and Filters Bar */}
       <div className="bg-white rounded-xl shadow-lg p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          {/* Selection Actions */}
+          {selectedFiles.length > 0 && (
+            <div className="lg:col-span-full mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-blue-900">
+                    {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSelection}
+                    className="h-8"
+                  >
+                    Clear selection
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllFiles}
+                    className="h-8"
+                  >
+                    Select all
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleGenerateInsights}
+                  disabled={isGeneratingInsights}
+                  className="bg-blue-600 hover:bg-blue-700"
+                  data-testid="button-generate-insights"
+                >
+                  <Brain className="w-4 h-4 mr-2" />
+                  {isGeneratingInsights ? 'Generating...' : 'Generate Insights'}
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="flex-1 max-w-lg">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
@@ -184,6 +266,8 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
                   key={file.id} 
                   file={file} 
                   onAskQuestions={() => onAskAboutFile(file)}
+                  isSelected={selectedFiles.includes(file.id)}
+                  onToggleSelection={() => toggleFileSelection(file.id)}
                 />
               ))}
             </div>
@@ -204,6 +288,8 @@ export default function ExploreGrid({ onAskAboutFile }: ExploreGridProps) {
                   key={file.id} 
                   file={file} 
                   onAskQuestions={() => onAskAboutFile(file)}
+                  isSelected={selectedFiles.includes(file.id)}
+                  onToggleSelection={() => toggleFileSelection(file.id)}
                 />
               ))}
               

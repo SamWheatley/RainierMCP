@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Video, FileImage, MoreVertical, MessageSquare, Download, RefreshCw } from "lucide-react";
+import { FileText, Video, FileImage, MoreVertical, MessageSquare, Download, RefreshCw, Check } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -10,9 +10,11 @@ import type { UploadedFile } from "@shared/schema";
 interface FileCardProps {
   file: UploadedFile;
   onAskQuestions: () => void;
+  isSelected?: boolean;
+  onToggleSelection?: () => void;
 }
 
-export default function FileCard({ file, onAskQuestions }: FileCardProps) {
+export default function FileCard({ file, onAskQuestions, isSelected = false, onToggleSelection }: FileCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -91,10 +93,31 @@ export default function FileCard({ file, onAskQuestions }: FileCardProps) {
   const IconComponent = getFileIcon(file.mimeType);
   
   return (
-    <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden">
+    <div className={`bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden ${
+      isSelected ? 'border-2 border-blue-500 ring-2 ring-blue-100' : 'border border-gray-200'
+    }`}>
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
+          {/* Selection Checkbox */}
+          {onToggleSelection && (
+            <div 
+              className="flex-shrink-0 mr-3 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelection();
+              }}
+              data-testid={`checkbox-file-${file.id}`}
+            >
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                isSelected 
+                  ? 'bg-blue-600 border-blue-600 text-white' 
+                  : 'border-gray-300 hover:border-blue-400'
+              }`}>
+                {isSelected && <Check className="w-3 h-3" />}
+              </div>
+            </div>
+          )}
+          <div className="flex items-center space-x-3 flex-1">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <IconComponent className="w-5 h-5 text-primary" />
             </div>
