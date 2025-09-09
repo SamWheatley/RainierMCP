@@ -154,7 +154,7 @@ I have access to all the source transcripts that informed this insight. What wou
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col" data-testid="insight-chat-modal">
+      <DialogContent className="max-w-4xl max-h-[90vh] h-[90vh] flex flex-col" data-testid="insight-chat-modal">
         <DialogHeader className="pb-4 border-b">
           <DialogTitle className="flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${getInsightColor(insight.type)}`}>
@@ -175,18 +175,23 @@ I have access to all the source transcripts that informed this insight. What wou
         </DialogHeader>
 
         {/* Insight Context */}
-        <Card className="bg-gray-50">
-          <CardContent className="p-4">
-            <p className="text-gray-700 mb-3">{insight.description}</p>
+        <Card className="bg-gray-50 flex-shrink-0">
+          <CardContent className="p-3">
+            <p className="text-gray-700 text-sm mb-2 line-clamp-2">{insight.description}</p>
             {insight.sources.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-2">Source Files:</p>
-                <div className="flex flex-wrap gap-2">
-                  {insight.sources.map((source, index) => (
+                <p className="text-xs font-medium text-gray-600 mb-1">Source Files:</p>
+                <div className="flex flex-wrap gap-1">
+                  {insight.sources.slice(0, 3).map((source, index) => (
                     <Badge key={index} variant="secondary" className="text-xs">
                       {source}
                     </Badge>
                   ))}
+                  {insight.sources.length > 3 && (
+                    <Badge variant="secondary" className="text-xs">
+                      +{insight.sources.length - 3} more
+                    </Badge>
+                  )}
                 </div>
               </div>
             )}
@@ -194,7 +199,7 @@ I have access to all the source transcripts that informed this insight. What wou
         </Card>
 
         {/* Chat Messages */}
-        <ScrollArea className="flex-1 px-1">
+        <ScrollArea className="flex-1 min-h-0 px-1">
           <div className="space-y-4 py-4">
             {messages.map((message) => (
               <div
@@ -271,7 +276,7 @@ I have access to all the source transcripts that informed this insight. What wou
         </ScrollArea>
 
         {/* Input Area */}
-        <div className="border-t pt-4">
+        <div className="border-t pt-4 flex-shrink-0">
           <div className="flex space-x-2">
             <Input
               value={inputMessage}
