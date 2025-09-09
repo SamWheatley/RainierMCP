@@ -69,9 +69,9 @@ export class OptimizedS3TranscriptService {
       const files: S3File[] = [];
       
       for (const obj of listResponse.Contents) {
-        if (!obj.Key || !obj.Key.endsWith('.norm.txt')) continue;
+        if (!obj.Key || !obj.Key.endsWith('.txt')) continue;
 
-        const fileName = obj.Key.replace('Transcripts/', '').replace('.norm.txt', '');
+        const fileName = obj.Key.replace('Transcripts/', '').replace('.txt', '');
         
         // Determine study type and metadata from filename
         const studyType = this.categorizeStudyType(fileName);
