@@ -44,6 +44,8 @@ export default function ResearchInsights() {
   const [editingInsight, setEditingInsight] = useState<{ id: string; title: string } | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [datasetFilter, setDatasetFilter] = useState<'all' | 'segment7' | 'personal'>('all');
+  const [selectedInsight, setSelectedInsight] = useState<ResearchInsight | null>(null);
+  const [isInsightChatOpen, setIsInsightChatOpen] = useState(false);
   const selectedModel = 'openai'; // Fixed to OpenAI for optimal performance
 
   const { toast } = useToast();
@@ -183,6 +185,16 @@ export default function ResearchInsights() {
   const handleCancelEdit = () => {
     setEditingInsight(null);
     setNewTitle("");
+  };
+
+  const handleInsightClick = (insight: ResearchInsight) => {
+    setSelectedInsight(insight);
+    setIsInsightChatOpen(true);
+  };
+
+  const handleCloseInsightChat = () => {
+    setIsInsightChatOpen(false);
+    setSelectedInsight(null);
   };
 
   const getInsightIcon = (type: string) => {
@@ -380,7 +392,7 @@ export default function ResearchInsights() {
                 {allInsights
                   .sort((a, b) => b.confidence - a.confidence)
                   .map((insight) => (
-                  <Card key={insight.id} className="hover:shadow-md transition-shadow">
+                  <Card key={insight.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleInsightClick(insight)} data-testid={`insight-card-${insight.id}`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3">
@@ -476,7 +488,7 @@ export default function ResearchInsights() {
                     })
                     .sort((a, b) => b.confidence - a.confidence)
                     .map((insight) => (
-                      <Card key={insight.id} className="hover:shadow-md transition-shadow">
+                      <Card key={insight.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleInsightClick(insight)} data-testid={`insight-card-${insight.id}`}>
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center space-x-3">
