@@ -1121,13 +1121,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insightId, message, context } = schema.parse(req.body);
 
       // Load relevant S3 files based on insight sources
-      const s3Service = await import('./s3ServiceOptimized');
-      const s3Files = await s3Service.getS3TranscriptFiles();
+      const { OptimizedS3TranscriptService } = await import('./s3ServiceOptimized');
+      const s3Service = new OptimizedS3TranscriptService();
+      const s3Files = await s3Service.getCuratedTranscripts();
       
       // Filter S3 files that match the insight sources
-      const relevantFiles = s3Files.filter(file => 
+      const relevantFiles = s3Files.filter((file: any) => 
         context.sources.some(source => 
-          source.includes(file.name) || file.name.includes(source)
+          source.includes(file.title) || file.title.includes(source)
         )
       );
 
@@ -1139,14 +1140,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const file of relevantFiles.slice(0, 8)) { // Limit to 8 most relevant files
         try {
-          const fileContent = await s3Service.loadS3FileContent(file.s3Key);
-          if (fileContent && fileContent.length > 100) {
-            combinedContent += `\n\n=== SOURCE: ${file.name} ===\n${fileContent.substring(0, 15000)}\n`; // 15k chars per file
-            sourceFileNames.push(file.name);
-            console.log(`✅ Loaded content from ${file.name}, length: ${fileContent.length}`);
+          const s3Key = file.metadata?.s3Key;
+          if (s3Key) {
+            const fileContent = await s3Service.getFileContent(s3Key);
+            if (fileContent && fileContent.length > 100) {
+              combinedContent += `\n\n=== SOURCE: ${file.title} ===\n${fileContent.substring(0, 15000)}\n`; // 15k chars per file
+              sourceFileNames.push(file.title);
+              console.log(`✅ Loaded content from ${file.title}, length: ${fileContent.length}`);
+            }
           }
         } catch (error) {
-          console.warn(`⚠️ Failed to load ${file.name}:`, error);
+          console.warn(`⚠️ Failed to load ${file.title}:`, error);
         }
       }
 
