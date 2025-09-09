@@ -1162,39 +1162,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create focused AI prompt for insight exploration
-      const focusedPrompt = `You are Ranier AI, Come Near's research intelligence assistant. You're helping explore a specific research insight in depth.
+      const focusedPrompt = `You are Ranier AI, Come Near's research intelligence assistant. You're helping explore the research insight: "${context.insightTitle}"
 
-INSIGHT CONTEXT:
-- Title: "${context.insightTitle}"
+INSIGHT DETAILS:
 - Type: ${context.insightType} 
 - Description: "${context.insightDescription}"
+- Confidence: High (AI-verified from source transcripts)
 
 USER QUESTION: "${message}"
 
-TRANSCRIPT DATA FROM SOURCE FILES:
+AVAILABLE TRANSCRIPT DATA:
 ${combinedContent}
 
-INSTRUCTIONS:
-- Focus specifically on this ${context.insightType} insight about "${context.insightTitle}"
-- When providing quotes, include the exact source file name in your response
-- Be specific and cite particular participants or moments when possible
-- If asked for quotes, provide verbatim excerpts with clear attribution
-- Maintain a helpful, analytical tone appropriate for research professionals
-- If the user asks about patterns, themes, or recommendations, relate back to the specific insight context
-- Source files available: ${sourceFileNames.join(', ')}
+INSTRUCTIONS FOR YOUR RESPONSE:
+1. If the user asks for "quotes" or "specific examples" - provide exact verbatim excerpts from the transcripts
+2. Always include the source file name when citing quotes (e.g., "From Atlanta_4-22_1PM_Segment 7:")
+3. When quoting, use this format:
+   **Quote from [Source File]:** "exact verbatim text from transcript"
+4. Be specific about which participants or moments you're referencing
+5. For non-quote questions, provide analytical insights but always reference specific transcript content
+6. Keep responses focused on this specific ${context.insightType} insight
+7. Available source files: ${sourceFileNames.join(', ')}
 
-Please provide a helpful, focused response that explores this insight in depth.`;
+RESPOND HELPFULLY AND CITE SPECIFIC TRANSCRIPT CONTENT TO SUPPORT YOUR ANALYSIS.`;
 
       // Use OpenAI for consistent performance (same as main insights)
+      console.log(`🤖 Making OpenAI request for insight "${context.insightTitle}" with ${combinedContent.length} chars of content`);
+      
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: 'user', content: focusedPrompt }],
-        max_completion_tokens: 1000,
-        temperature: 0.3
+        max_completion_tokens: 1500, // Increased for longer quote responses
+        temperature: 0.2 // Lower for more focused, factual responses
       });
 
-      const aiResponse = response.choices[0].message.content || "I apologize, but I couldn't generate a response at this time.";
+      const aiResponse = response.choices[0].message.content;
+      
+      if (!aiResponse || aiResponse.trim().length === 0) {
+        console.warn("⚠️ OpenAI returned empty response");
+        return res.status(500).json({
+          content: "I apologize, but I received an empty response. Please try rephrasing your question or try again in a moment.",
+          sources: sourceFileNames
+        });
+      }
+
+      console.log(`✅ OpenAI response generated: ${aiResponse.length} characters`);
 
       console.log(`🤖 Generated insight chat response for "${context.insightTitle}" (${aiResponse.length} chars)`);
 
