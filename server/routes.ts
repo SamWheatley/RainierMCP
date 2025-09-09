@@ -815,8 +815,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add S3 curated transcript files
       try {
-        const { S3TranscriptService } = await import('./s3Service');
-        const s3Service = new S3TranscriptService();
+        const { OptimizedS3TranscriptService } = await import('./s3ServiceOptimized');
+        const s3Service = new OptimizedS3TranscriptService();
         const s3Files = await s3Service.getCuratedTranscripts();
         
         // Convert S3 files to FileData format and add to results
