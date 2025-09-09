@@ -215,3 +215,66 @@ export async function generateThreadTitle(firstMessage: string): Promise<string>
     return "Research Conversation";
   }
 }
+
+export interface TranscriptMetadata {
+  studyType: "focus-group" | "interview" | "survey" | "observation" | "usability-test" | "document" | "unknown";
+  participantCount?: number;
+  duration?: string;
+  keyThemes: string[];
+  confidence: number;
+}
+
+export async function categorizeTranscript(content: string, filename: string): Promise<TranscriptMetadata> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system", 
+          content: `Analyze this research document and categorize it. Return a JSON object with:
+{
+  "studyType": "focus-group" | "interview" | "survey" | "observation" | "usability-test" | "document" | "unknown",
+  "participantCount": number (if identifiable),
+  "duration": "estimated duration" (if mentioned),
+  "keyThemes": ["theme1", "theme2", "theme3"],
+  "confidence": 0.0-1.0
+}
+
+Study type definitions:
+- focus-group: Multiple participants discussing topics together
+- interview: One-on-one conversation between researcher and participant  
+- survey: Structured questionnaire responses
+- observation: Field notes or behavioral observations
+- usability-test: User testing session with task completion
+- document: Research report, analysis, or other non-transcript content
+- unknown: Cannot determine type
+
+Extract 3-5 key themes that emerge from the content.`,
+        },
+        {
+          role: "user",
+          content: `Filename: ${filename}\n\nContent preview (first 2000 chars):\n${content.substring(0, 2000)}`,
+        },
+      ],
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    return {
+      studyType: result.studyType || "unknown",
+      participantCount: result.participantCount,
+      duration: result.duration,
+      keyThemes: result.keyThemes || [],
+      confidence: result.confidence || 0.5
+    };
+  } catch (error) {
+    console.error("Error categorizing transcript:", error);
+    return {
+      studyType: "unknown",
+      keyThemes: [],
+      confidence: 0.1
+    };
+  }
+}
+
