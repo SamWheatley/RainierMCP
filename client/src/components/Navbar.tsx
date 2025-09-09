@@ -1,15 +1,20 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, MessageSquare, FolderOpen, Brain } from "lucide-react";
+import { Bell, MessageSquare, FolderOpen, Brain, FileBarChart } from "lucide-react";
 import magnifyingGlassImage from "@assets/magnifying-glass-search-black-icon-transparent-background-701751694974241svd11gtb6h_1755712552612.png";
 
+import HamburgerMenu from "./HamburgerMenu";
+
 interface NavbarProps {
-  activeTab: 'ask' | 'explore' | 'insights';
-  onTabChange: (tab: 'ask' | 'explore' | 'insights') => void;
+  activeTab: 'ask' | 'explore' | 'insights' | 'reports';
+  onTabChange: (tab: 'ask' | 'explore' | 'insights' | 'reports') => void;
+  currentThreadId?: string | null;
+  onThreadSelect?: (threadId: string) => void;
+  onNewThread?: () => void;
 }
 
-export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
+export default function Navbar({ activeTab, onTabChange, currentThreadId, onThreadSelect, onNewThread }: NavbarProps) {
   const { user } = useAuth();
 
   const getInitials = (firstName?: string, lastName?: string) => {
@@ -72,6 +77,18 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
               <Brain className="w-4 h-4 mr-2" />
               Insights
             </Button>
+            <Button
+              variant={activeTab === 'reports' ? 'default' : 'ghost'}
+              className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+                activeTab === 'reports' 
+                  ? 'text-primary border-b-2 border-primary bg-transparent hover:bg-transparent' 
+                  : 'text-gray-600 hover:text-primary'
+              }`}
+              onClick={() => onTabChange('reports')}
+            >
+              <FileBarChart className="w-4 h-4 mr-2" />
+              Reports
+            </Button>
           </div>
 
           {/* User Profile */}
@@ -79,6 +96,13 @@ export default function Navbar({ activeTab, onTabChange }: NavbarProps) {
             <Button variant="ghost" size="icon" className="text-gray-600 hover:text-primary">
               <Bell className="h-5 w-5" />
             </Button>
+            {currentThreadId !== undefined && onThreadSelect && onNewThread && (
+              <HamburgerMenu 
+                currentThreadId={currentThreadId}
+                onThreadSelect={onThreadSelect}
+                onNewThread={onNewThread}
+              />
+            )}
             <div className="flex items-center space-x-3">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={user?.profileImageUrl || ""} />

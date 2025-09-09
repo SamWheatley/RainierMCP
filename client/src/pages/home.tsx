@@ -3,11 +3,12 @@ import { useLocation } from "wouter";
 import Navbar from "@/components/Navbar";
 import Chat from "@/components/Chat";
 import InsightsPanel from "@/components/InsightsPanel";
+import ReportsPage from "@/components/ReportsPage";
 import ExploreGrid from "@/components/ExploreGrid";
 import type { UploadedFile } from "@shared/schema";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'ask' | 'explore' | 'insights'>('insights');
+  const [activeTab, setActiveTab] = useState<'ask' | 'explore' | 'insights' | 'reports'>('insights');
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [, setLocation] = useLocation();
 
@@ -29,7 +30,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Navbar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        currentThreadId={currentThreadId}
+        onThreadSelect={handleThreadSelect}
+        onNewThread={handleNewThread}
+      />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'ask' ? (
@@ -45,6 +52,8 @@ export default function Home() {
             onThreadSelect={handleThreadSelect}
             onNewThread={handleNewThread}
           />
+        ) : activeTab === 'reports' ? (
+          <ReportsPage />
         ) : (
           <ExploreGrid onAskAboutFile={handleAskAboutFile} />
         )}
