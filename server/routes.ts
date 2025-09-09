@@ -97,13 +97,13 @@ async function generateResearchInsights(
           return [];
         }
       } else {
-        // Default to OpenAI GPT-5 (latest model released August 2025)
+        // Use OpenAI GPT-4o (latest available model)
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
         const response = await openai.chat.completions.create({
-          model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+          model: "gpt-4o",
           messages: [{ role: 'user', content: prompt }],
           response_format: { type: "json_object" },
-          max_tokens: maxTokens,
+          max_completion_tokens: maxTokens,
           temperature
         });
         const content = response.choices[0].message.content || '[]';
@@ -246,13 +246,13 @@ Provide 3-5 insights per category. If no insights found for a category, use an e
         const { generateResearchInsights: grokGenerate } = await import('./grok');
         return await grokGenerate(prompt);
       } else {
-        // Use OpenAI GPT-5 (highest rate limits, latest model)
+        // Use OpenAI GPT-4o (highest rate limits, latest available model)  
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
         const response = await openai.chat.completions.create({
-          model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+          model: "gpt-4o",
           messages: [{ role: 'user', content: prompt }],
           response_format: { type: "json_object" },
-          max_tokens: maxTokens,
+          max_completion_tokens: maxTokens,
           temperature
         });
         const content = response.choices[0].message.content || '[]';
