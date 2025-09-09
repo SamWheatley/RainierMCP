@@ -196,13 +196,15 @@ ${fileContent}
 
 ${conversationData}
 
+IMPORTANT: When listing sources, use EXACTLY the file names shown above (like "Atlanta_4-22_1PM_Segment 7" or "6. SEGMENT 7 - SPIRITUALITY v2").
+
 Return ONLY a JSON array of theme insights in this exact format:
 [{
   "type": "theme",
   "title": "Brief theme name",
   "description": "Detailed description of the theme and its significance",
   "confidence": 0.85,
-  "sources": ["specific file names from the data above"]
+  "sources": ["exact file names from the research data above"]
 }]
 
 Limit to 3-5 most significant themes. If no themes found, return exactly: []`;
@@ -214,7 +216,13 @@ Limit to 3-5 most significant themes. If no themes found, return exactly: []`;
       ...insight,
       userId,
       sessionId: session.id,
-      sources: insight.sources || []
+      sources: insight.sources ? insight.sources.map((source: string) => {
+        const fileData = fileMetadata[source];
+        if (fileData?.isS3 && fileData.s3Key) {
+          return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
+        }
+        return source;
+      }) : []
     })));
 
     // Bias Detection Analysis
@@ -248,7 +256,13 @@ Look for subtle biases too - even minor concerns are valuable for improving rese
       ...insight,
       userId,
       sessionId: session.id,
-      sources: insight.sources || []
+      sources: insight.sources ? insight.sources.map((source: string) => {
+        const fileData = fileMetadata[source];
+        if (fileData?.isS3 && fileData.s3Key) {
+          return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
+        }
+        return source;
+      }) : []
     })));
 
     // Pattern Recognition Analysis
@@ -283,7 +297,13 @@ Focus on 2-4 most significant patterns that could inform strategy. If no pattern
       ...insight,
       userId,
       sessionId: session.id,
-      sources: insight.sources || []
+      sources: insight.sources ? insight.sources.map((source: string) => {
+        const fileData = fileMetadata[source];
+        if (fileData?.isS3 && fileData.s3Key) {
+          return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
+        }
+        return source;
+      }) : []
     })));
 
     // Recommendation Generation
@@ -317,7 +337,13 @@ Focus on 2-4 highest-impact recommendations. If no recommendations found, return
       ...insight,
       userId,
       sessionId: session.id,
-      sources: insight.sources || []
+      sources: insight.sources ? insight.sources.map((source: string) => {
+        const fileData = fileMetadata[source];
+        if (fileData?.isS3 && fileData.s3Key) {
+          return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
+        }
+        return source;
+      }) : []
     })));
 
   } catch (error) {
