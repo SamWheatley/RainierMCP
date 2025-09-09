@@ -87,14 +87,29 @@ I have access to all the source transcripts that informed this insight. What wou
       return response;
     },
     onSuccess: (response: any) => {
+      console.log("🎯 Insight chat response received:", response);
+      
+      let responseContent = "";
+      if (response && typeof response === 'object') {
+        responseContent = response.content || response.message || response.data?.content || "";
+      } else if (typeof response === 'string') {
+        responseContent = response;
+      }
+      
+      if (!responseContent) {
+        console.warn("⚠️ No content found in response:", response);
+        responseContent = "I apologize, but I couldn't generate a response at this time.";
+      }
+      
       const assistantMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: response.content || response.message || "I apologize, but I couldn't generate a response at this time.",
+        content: responseContent,
         timestamp: new Date().toISOString(),
-        sources: response.sources || [],
+        sources: response?.sources || [],
       };
       
+      console.log("📝 Adding message to chat:", assistantMessage.content.substring(0, 100) + "...");
       setMessages(prev => [...prev, assistantMessage]);
       setIsLoading(false);
     },
