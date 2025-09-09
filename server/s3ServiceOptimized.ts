@@ -20,13 +20,13 @@ export class OptimizedS3TranscriptService {
   private bucketName: string;
 
   constructor() {
-    this.bucketName = process.env.PARTNER_BUCKET || 'cn2025persona';
+    this.bucketName = 'cn2025persona'; // Updated to use correct bucket with 46 transcript files
     this.s3 = new S3Client({
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID_RAINIER!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY_RAINIER!
       },
-      region: process.env.AWS_DEFAULT_REGION || 'us-east-1'
+      region: 'us-east-2' // cn2025persona bucket is in us-east-2 region
     });
   }
 
