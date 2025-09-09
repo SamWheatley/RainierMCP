@@ -6,8 +6,9 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { getAIProvider, type AIProviderType } from "./ai-providers";
 import { z } from "zod";
-import type { UploadedFile, ChatThread, InsertResearchInsight, InsertInsightSession } from "@shared/schema";
+import type { UploadedFile, ChatThread, InsertResearchInsight, InsertInsightSession, TrendMetric, PullQuote } from "@shared/schema";
 import OpenAI from "openai";
+import { OptimizedS3TranscriptService } from "./s3ServiceOptimized";
 
 // Helper function to generate session titles
 function generateSessionTitle(dataset: string, model: string): string {
@@ -1290,6 +1291,230 @@ RESPOND HELPFULLY AND CITE SPECIFIC TRANSCRIPT CONTENT TO SUPPORT YOUR ANALYSIS.
         success: false, 
         message: "Failed to start ingestion process",
         error: error.message 
+      });
+    }
+  });
+
+  // Predictive Intelligence API Endpoints for Reports
+  
+  // Trend metrics endpoint - analyzes theme prevalence changes over time
+  app.get('/api/trend-metrics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const s3Service = new OptimizedS3TranscriptService();
+      
+      console.log('🔍 Generating trend metrics from S3 transcript data...');
+      
+      // Get curated transcripts
+      const transcripts = await s3Service.getCuratedTranscripts();
+      const sharedTranscripts = transcripts.filter(file => file.shared);
+      
+      console.log(`📊 Analyzing trends from ${sharedTranscripts.length} shared transcripts`);
+      
+      // Load content from key transcripts for trend analysis
+      const contentSamples: { filename: string; content: string; }[] = [];
+      for (const transcript of sharedTranscripts.slice(0, 8)) { // Use first 8 for efficiency
+        try {
+          const content = await s3Service.getFileContent(transcript.s3Key);
+          contentSamples.push({
+            filename: transcript.title,
+            content: content.substring(0, 5000) // First 5k chars for trend analysis
+          });
+        } catch (error) {
+          console.warn(`Failed to load content for ${transcript.title}:`, error);
+        }
+      }
+      
+      // Use OpenAI to detect trends in the data
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+      
+      const trendPrompt = `Analyze the following research transcript excerpts to detect key themes and estimate their prevalence. Generate trend metrics data in JSON format.
+
+Content samples: ${JSON.stringify(contentSamples.map(s => ({ filename: s.filename, excerpt: s.content.substring(0, 2000) })))}
+
+Return a JSON object with this structure:
+{
+  "trends": [
+    {
+      "theme": "Theme name",
+      "currentValue": 75,
+      "previousValue": 61,
+      "changePercentage": 23,
+      "trendDirection": "up",
+      "confidence": 0.87,
+      "sampleSize": 14,
+      "category": "spiritual|technology|community|personal",
+      "evidence": ["Brief evidence 1", "Brief evidence 2"]
+    }
+  ]
+}
+
+Focus on major themes like spiritual seeking, technology impact, community connection, family relationships, and personal growth. Provide realistic percentage estimates based on content analysis.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: 'user', content: trendPrompt }],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 1500,
+        temperature: 0.3
+      });
+
+      const content = response.choices[0].message.content || '{"trends": []}';
+      const trendData = JSON.parse(content);
+      
+      console.log(`✅ Generated ${trendData.trends?.length || 0} trend metrics`);
+      res.json({ trends: trendData.trends || [] });
+      
+    } catch (error: any) {
+      console.error("Error generating trend metrics:", error);
+      res.status(500).json({ 
+        error: "Failed to generate trend metrics",
+        message: error.message 
+      });
+    }
+  });
+
+  // Pull quotes endpoint - extracts impactful participant quotes
+  app.get('/api/pull-quotes', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const s3Service = new OptimizedS3TranscriptService();
+      const theme = req.query.theme as string || 'all';
+      
+      console.log(`📝 Extracting pull quotes for theme: ${theme}`);
+      
+      // Get curated transcripts
+      const transcripts = await s3Service.getCuratedTranscripts();
+      const sharedTranscripts = transcripts.filter(file => file.shared);
+      
+      // Load content from selected transcripts
+      const quoteContent: { filename: string; content: string; }[] = [];
+      for (const transcript of sharedTranscripts.slice(0, 6)) { // Use 6 transcripts for quotes
+        try {
+          const content = await s3Service.getFileContent(transcript.s3Key);
+          quoteContent.push({
+            filename: transcript.title,
+            content: content.substring(0, 8000) // More content for quote extraction
+          });
+        } catch (error) {
+          console.warn(`Failed to load content for ${transcript.title}:`, error);
+        }
+      }
+      
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+      
+      const quotesPrompt = `Extract powerful, impactful quotes from these research transcripts. Focus on quotes that are emotionally resonant, reveal deep insights, or represent key themes.
+
+Transcript content: ${JSON.stringify(quoteContent)}
+
+Return a JSON object with this structure:
+{
+  "quotes": [
+    {
+      "text": "Exact quote text",
+      "speaker": "Speaker 1",
+      "sourceFile": "Source filename", 
+      "theme": "Primary theme",
+      "sentiment": "positive|negative|neutral",
+      "impact": "Why this quote is impactful",
+      "context": "Brief context around the quote"
+    }
+  ]
+}
+
+Focus on quotes about spiritual seeking, technology impact, community connection, family relationships, trauma, growth, and personal transformation. Select the most powerful and representative quotes.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", 
+        messages: [{ role: 'user', content: quotesPrompt }],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 2000,
+        temperature: 0.4
+      });
+
+      const content = response.choices[0].message.content || '{"quotes": []}';
+      const quotesData = JSON.parse(content);
+      
+      console.log(`✅ Extracted ${quotesData.quotes?.length || 0} pull quotes`);
+      res.json({ quotes: quotesData.quotes || [] });
+      
+    } catch (error: any) {
+      console.error("Error extracting pull quotes:", error);
+      res.status(500).json({ 
+        error: "Failed to extract pull quotes",
+        message: error.message 
+      });
+    }
+  });
+
+  // Early warning system endpoint - detects emerging concerns
+  app.get('/api/early-warnings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const s3Service = new OptimizedS3TranscriptService();
+      
+      console.log('⚠️ Analyzing for early warning signals...');
+      
+      // Get curated transcripts
+      const transcripts = await s3Service.getCuratedTranscripts();
+      const sharedTranscripts = transcripts.filter(file => file.shared);
+      
+      // Load content for early warning analysis
+      const warningContent: { filename: string; content: string; }[] = [];
+      for (const transcript of sharedTranscripts.slice(0, 5)) {
+        try {
+          const content = await s3Service.getFileContent(transcript.s3Key);
+          warningContent.push({
+            filename: transcript.title,
+            content: content.substring(0, 6000)
+          });
+        } catch (error) {
+          console.warn(`Failed to load content for ${transcript.title}:`, error);
+        }
+      }
+      
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+      
+      const warningPrompt = `Analyze these research transcripts for early warning signals - emerging concerns, rising anxiety patterns, or developing issues that weren't prominent before.
+
+Content: ${JSON.stringify(warningContent)}
+
+Return a JSON object with this structure:
+{
+  "warnings": [
+    {
+      "concern": "Brief title of emerging concern",
+      "description": "What the concern is about",
+      "severity": "low|medium|high",
+      "confidence": 0.75,
+      "trendPercentage": 18,
+      "evidence": ["Supporting evidence 1", "Supporting evidence 2"],
+      "recommendations": ["Action recommendation 1", "Action recommendation 2"]
+    }
+  ]
+}
+
+Look for: technology anxiety, community disconnection, economic concerns, health worries, generational gaps, spiritual crises, relationship challenges.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: 'user', content: warningPrompt }],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 1500,
+        temperature: 0.4
+      });
+
+      const content = response.choices[0].message.content || '{"warnings": []}';
+      const warningData = JSON.parse(content);
+      
+      console.log(`🚨 Detected ${warningData.warnings?.length || 0} early warning signals`);
+      res.json({ warnings: warningData.warnings || [] });
+      
+    } catch (error: any) {
+      console.error("Error detecting early warnings:", error);
+      res.status(500).json({ 
+        error: "Failed to detect early warnings",
+        message: error.message 
       });
     }
   });

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, AlertTriangle, Calendar, Download, BarChart3, Quote } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Calendar, Download, BarChart3, Quote, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 interface TrendMetric {
@@ -10,60 +10,55 @@ interface TrendMetric {
   currentValue: number;
   previousValue: number;
   changePercentage: number;
-  trend: "up" | "down" | "stable";
+  trendDirection: "up" | "down" | "stable";
   confidence: number;
+  category?: string;
+  evidence?: string[];
 }
 
 interface PullQuote {
   text: string;
   speaker: string;
-  source: string;
+  sourceFile: string;
   theme: string;
+  sentiment?: string;
+  impact?: string;
+  context?: string;
+}
+
+interface EarlyWarning {
+  concern: string;
+  description: string;
+  severity: "low" | "medium" | "high";
+  confidence: number;
+  trendPercentage: number;
+  evidence?: string[];
+  recommendations?: string[];
 }
 
 export default function ReportsPage() {
-  // Mock data for now - will be replaced with real API calls
-  const trendMetrics: TrendMetric[] = [
-    {
-      theme: "Spiritual Seeking Beyond Traditional Religion",
-      currentValue: 73,
-      previousValue: 59,
-      changePercentage: 23,
-      trend: "up",
-      confidence: 0.91
-    },
-    {
-      theme: "Technology Impact on Daily Life", 
-      currentValue: 84,
-      previousValue: 71,
-      changePercentage: 18,
-      trend: "up",
-      confidence: 0.88
-    },
-    {
-      theme: "Community Connection Challenges",
-      currentValue: 62,
-      previousValue: 78,
-      changePercentage: -21,
-      trend: "down", 
-      confidence: 0.85
-    }
-  ];
+  // Real API data queries
+  const { data: trendData, isLoading: trendsLoading } = useQuery({
+    queryKey: ['/api/trend-metrics'],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
+  });
 
-  const pullQuotes: PullQuote[] = [
-    {
-      text: "When I was 14, my mom passed. I just remember being so angry at God at the church because the church believed that my mom would be healed.",
-      speaker: "Speaker 1",
-      source: "SEGMENT 7 - PAST v2",
-      theme: "Spiritual Seeking"
-    },
-    {
-      text: "I cannot remember one moment in my life where I actually believed into the Catholic religion later on in life when I learned more.",
-      speaker: "Speaker 5", 
-      source: "SEGMENT 7 - SPIRITUALITY v2",
-      theme: "Spiritual Seeking"
-    }
-  ];
+  const { data: quotesData, isLoading: quotesLoading } = useQuery({
+    queryKey: ['/api/pull-quotes'],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
+  const { data: warningsData, isLoading: warningsLoading } = useQuery({
+    queryKey: ['/api/early-warnings'],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
+  const trendMetrics: TrendMetric[] = trendData?.trends || [];
+  const pullQuotes: PullQuote[] = quotesData?.quotes || [];
+  const earlyWarnings: EarlyWarning[] = warningsData?.warnings || [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -87,37 +82,52 @@ export default function ReportsPage() {
             <CardTitle className="flex items-center space-x-2">
               <TrendingUp className="w-5 h-5 text-blue-600" />
               <span>Trend Detection</span>
+              {trendsLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             </CardTitle>
             <CardDescription>
-              Theme prevalence changes since last quarter
+              AI-analyzed theme prevalence changes from S3 transcript data
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {trendMetrics.map((metric, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{metric.theme}</h4>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-sm text-gray-600">
-                      {metric.previousValue}% → {metric.currentValue}%
-                    </span>
-                    <Badge variant={metric.trend === 'up' ? 'default' : metric.trend === 'down' ? 'destructive' : 'secondary'}>
-                      {metric.trend === 'up' ? '+' : metric.trend === 'down' ? '-' : ''}{Math.abs(metric.changePercentage)}%
-                    </Badge>
+            {trendsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                <span className="text-gray-600">Analyzing transcript data...</span>
+              </div>
+            ) : trendMetrics.length === 0 ? (
+              <div className="text-center py-8 text-gray-600">
+                No trend data available. Try refreshing or check back later.
+              </div>
+            ) : (
+              trendMetrics.map((metric, index) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{metric.theme}</h4>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <span className="text-sm text-gray-600">
+                        {metric.previousValue}% → {metric.currentValue}%
+                      </span>
+                      <Badge variant={metric.trendDirection === 'up' ? 'default' : metric.trendDirection === 'down' ? 'destructive' : 'secondary'}>
+                        {metric.trendDirection === 'up' ? '+' : metric.trendDirection === 'down' ? '-' : ''}{Math.abs(metric.changePercentage)}%
+                      </Badge>
+                    </div>
+                    {metric.category && (
+                      <span className="text-xs text-gray-500 capitalize">{metric.category}</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {metric.trendDirection === 'up' ? (
+                      <TrendingUp className="w-6 h-6 text-green-600" />
+                    ) : metric.trendDirection === 'down' ? (
+                      <TrendingDown className="w-6 h-6 text-red-600" />
+                    ) : (
+                      <BarChart3 className="w-6 h-6 text-gray-400" />
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">{Math.round(metric.confidence * 100)}% conf.</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  {metric.trend === 'up' ? (
-                    <TrendingUp className="w-6 h-6 text-green-600" />
-                  ) : metric.trend === 'down' ? (
-                    <TrendingDown className="w-6 h-6 text-red-600" />
-                  ) : (
-                    <BarChart3 className="w-6 h-6 text-gray-400" />
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">{Math.round(metric.confidence * 100)}% conf.</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -127,20 +137,49 @@ export default function ReportsPage() {
             <CardTitle className="flex items-center space-x-2">
               <AlertTriangle className="w-5 h-5 text-amber-600" />
               <span>Early Warnings</span>
+              {warningsLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             </CardTitle>
             <CardDescription>
-              Emerging concerns detected
+              AI-detected emerging concerns from transcript analysis
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="p-3 border border-amber-200 bg-amber-50 rounded-lg">
-              <h4 className="font-semibold text-amber-900 text-sm">Technology Anxiety Rising</h4>
-              <p className="text-xs text-amber-700 mt-1">18% increase in tech-related concerns</p>
-            </div>
-            <div className="p-3 border border-blue-200 bg-blue-50 rounded-lg">
-              <h4 className="font-semibold text-blue-900 text-sm">Community Disconnect</h4>
-              <p className="text-xs text-blue-700 mt-1">21% decline in community connection themes</p>
-            </div>
+            {warningsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <span className="text-xs text-gray-600">Detecting patterns...</span>
+              </div>
+            ) : earlyWarnings.length === 0 ? (
+              <div className="text-center py-4 text-xs text-gray-600">
+                No emerging concerns detected
+              </div>
+            ) : (
+              earlyWarnings.map((warning, index) => (
+                <div key={index} className={`p-3 border rounded-lg ${
+                  warning.severity === 'high' ? 'border-red-200 bg-red-50' :
+                  warning.severity === 'medium' ? 'border-amber-200 bg-amber-50' :
+                  'border-blue-200 bg-blue-50'
+                }`}>
+                  <h4 className={`font-semibold text-sm ${
+                    warning.severity === 'high' ? 'text-red-900' :
+                    warning.severity === 'medium' ? 'text-amber-900' :
+                    'text-blue-900'
+                  }`}>{warning.concern}</h4>
+                  <p className={`text-xs mt-1 ${
+                    warning.severity === 'high' ? 'text-red-700' :
+                    warning.severity === 'medium' ? 'text-amber-700' :
+                    'text-blue-700'
+                  }`}>{warning.trendPercentage}% trend increase</p>
+                  {warning.description && (
+                    <p className={`text-xs mt-1 ${
+                      warning.severity === 'high' ? 'text-red-600' :
+                      warning.severity === 'medium' ? 'text-amber-600' :
+                      'text-blue-600'
+                    }`}>{warning.description}</p>
+                  )}
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
@@ -183,27 +222,53 @@ export default function ReportsPage() {
           <CardTitle className="flex items-center space-x-2">
             <Quote className="w-5 h-5 text-indigo-600" />
             <span>Key Pull Quotes</span>
+            {quotesLoading && <Loader2 className="w-4 h-4 animate-spin" />}
           </CardTitle>
           <CardDescription>
-            Powerful participant voices supporting trending insights
+            AI-extracted impactful participant voices from S3 transcripts
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {pullQuotes.map((quote, index) => (
-            <div key={index} className="border-l-4 border-indigo-500 pl-4 py-2">
-              <blockquote className="text-gray-700 italic mb-2">
-                "{quote.text}"
-              </blockquote>
-              <div className="flex items-center justify-between text-sm">
-                <div className="text-gray-600">
-                  <span className="font-medium">{quote.speaker}</span> • {quote.source}
-                </div>
-                <Badge variant="outline" className="text-indigo-700 border-indigo-200">
-                  {quote.theme}
-                </Badge>
-              </div>
+          {quotesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              <span className="text-gray-600">Extracting powerful quotes...</span>
             </div>
-          ))}
+          ) : pullQuotes.length === 0 ? (
+            <div className="text-center py-8 text-gray-600">
+              No quotes available. Try refreshing or check back later.
+            </div>
+          ) : (
+            pullQuotes.map((quote, index) => (
+              <div key={index} className="border-l-4 border-indigo-500 pl-4 py-2">
+                <blockquote className="text-gray-700 italic mb-2">
+                  "{quote.text}"
+                </blockquote>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="text-gray-600">
+                    <span className="font-medium">{quote.speaker}</span> • {quote.sourceFile}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {quote.sentiment && (
+                      <Badge variant="outline" className={`text-xs ${
+                        quote.sentiment === 'positive' ? 'text-green-700 border-green-200' :
+                        quote.sentiment === 'negative' ? 'text-red-700 border-red-200' :
+                        'text-gray-700 border-gray-200'
+                      }`}>
+                        {quote.sentiment}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-indigo-700 border-indigo-200">
+                      {quote.theme}
+                    </Badge>
+                  </div>
+                </div>
+                {quote.context && (
+                  <p className="text-xs text-gray-500 mt-2">{quote.context}</p>
+                )}
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 
