@@ -1183,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create focused AI prompt for insight exploration
-      const focusedPrompt = `You are Ranier AI, Come Near's research intelligence assistant. You're helping explore the research insight: "${context.insightTitle}"
+      const focusedPrompt = `You are Rainier AI, Come Near's research intelligence assistant. You're helping explore the research insight: "${context.insightTitle}"
 
 INSIGHT DETAILS:
 - Type: ${context.insightType} 

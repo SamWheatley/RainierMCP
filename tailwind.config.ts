@@ -51,7 +51,7 @@ export default {
           "4": "var(--chart-4)",
           "5": "var(--chart-5)",
         },
-        // Ranier-specific colors
+        // Rainier-specific colors
         'primary-dark': "hsl(12, 64%, 50%)", // PANTONE 17-1230 dark variant
         'surface': "hsl(0, 0%, 100%)", // #FFFFFF
         'background-gray': "hsl(240, 4.8%, 95.9%)", // #FAFAFA equivalent

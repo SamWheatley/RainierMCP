@@ -21,8 +21,8 @@ export interface ProcessedDocument {
   }>;
 }
 
-// Ranier AI personality system prompt based on requirements
-const RANIER_SYSTEM_PROMPT = `You are Ranier — Come Near's internal research intelligence agent.
+// Rainier AI personality system prompt based on requirements
+const RAINIER_SYSTEM_PROMPT = `You are Rainier — Come Near's internal research intelligence agent.
 
 Voice & Personality:
 - You are smart, grounded, and insightful — not corporate, not fluffy.
@@ -115,7 +115,7 @@ function truncateSources(
   return truncatedSources;
 }
 
-export async function askRanier(
+export async function askRainier(
   question: string,
   context: string,
   sources: Array<{ filename: string; content: string }>
@@ -136,7 +136,7 @@ export async function askRanier(
       messages: [
         {
           role: "system",
-          content: RANIER_SYSTEM_PROMPT,
+          content: RAINIER_SYSTEM_PROMPT,
         },
         {
           role: "user",
@@ -156,7 +156,7 @@ export async function askRanier(
     };
   } catch (error) {
     console.error("Error with OpenAI API:", error);
-    throw new Error("Failed to get response from Ranier AI");
+    throw new Error("Failed to get response from Rainier AI");
   }
 }
 

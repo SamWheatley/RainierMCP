@@ -1,6 +1,6 @@
 // Common interface for AI providers
 export interface AIProvider {
-  askRanier(
+  askRainier(
     question: string,
     context: string,
     sources: Array<{ filename: string; content: string }>
@@ -26,7 +26,7 @@ export async function getAIProvider(providerType: AIProviderType): Promise<AIPro
     case 'openai': {
       const openaiModule = await import('./openai');
       return {
-        askRanier: openaiModule.askRanier,
+        askRainier: openaiModule.askRainier,
         extractTextFromDocument: openaiModule.extractTextFromDocument,
         generateThreadTitle: openaiModule.generateThreadTitle,
       };
@@ -34,7 +34,7 @@ export async function getAIProvider(providerType: AIProviderType): Promise<AIPro
     case 'anthropic': {
       const anthropicModule = await import('./anthropic');
       return {
-        askRanier: anthropicModule.askRanier,
+        askRainier: anthropicModule.askRainier,
         extractTextFromDocument: anthropicModule.extractTextFromDocument,
         generateThreadTitle: anthropicModule.generateThreadTitle,
       };
@@ -42,7 +42,7 @@ export async function getAIProvider(providerType: AIProviderType): Promise<AIPro
     case 'grok': {
       const grokModule = await import('./grok');
       return {
-        askRanier: grokModule.askRanier,
+        askRainier: grokModule.askRainier,
         extractTextFromDocument: grokModule.extractTextFromDocument,
         generateThreadTitle: grokModule.generateThreadTitle,
       };
@@ -95,7 +95,7 @@ export async function askWithFallback(
   // Try primary provider first
   try {
     const provider = await getAIProvider(primaryProvider);
-    const response = await provider.askRanier(question, context, augmentedSources);
+    const response = await provider.askRainier(question, context, augmentedSources);
     return { 
       response, 
       usedProvider: primaryProvider, 
@@ -112,7 +112,7 @@ export async function askWithFallback(
       primaryError.message.includes('too large') ||
       primaryError.message.includes('Request too large') ||
       primaryError.message.includes('API key') ||
-      primaryError.message.includes('Failed to get response from Ranier AI')
+      primaryError.message.includes('Failed to get response from Rainier AI')
     );
     
     if (shouldFallback) {
@@ -126,7 +126,7 @@ export async function askWithFallback(
         }));
         
         const fallbackProviderInstance = await getAIProvider(fallbackProvider);
-        const response = await fallbackProviderInstance.askRanier(question, context, truncatedSources);
+        const response = await fallbackProviderInstance.askRainier(question, context, truncatedSources);
         
         // Add a note that fallback was used
         const enhancedResponse = {

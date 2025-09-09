@@ -35,7 +35,7 @@ export default function Navbar({ activeTab, onTabChange, currentThreadId, onThre
             />
             <div className="flex flex-col">
               <span className="text-xl font-semibold text-gray-900 leading-tight">Come Near</span>
-              <span className="text-sm text-gray-600 font-medium leading-tight">Ranier</span>
+              <span className="text-sm text-gray-600 font-medium leading-tight">Rainier</span>
             </div>
           </div>
 

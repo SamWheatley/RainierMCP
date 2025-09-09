@@ -285,7 +285,7 @@ export default function Chat({ threadId, onThreadCreated, selectedFile, onFileLo
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 max-w-[70%]">
                   <p className="text-gray-900 text-sm">
-                    Hello! I'm Ranier, your research intelligence assistant. I can help you analyze and extract insights from your uploaded transcripts and documents. What would you like to explore today?
+                    Hello! I'm Rainier, your research intelligence assistant. I can help you analyze and extract insights from your uploaded transcripts and documents. What would you like to explore today?
                   </p>
                 </div>
               </div>

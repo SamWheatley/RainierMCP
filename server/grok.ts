@@ -67,7 +67,7 @@ export async function analyzeSentiment(text: string): Promise<{
   }
 }
 
-// Research insights analysis for Ranier
+// Research insights analysis for Rainier
 export async function generateResearchInsights(prompt: string): Promise<any[]> {
   try {
     const openai = getGrokClient();
@@ -103,7 +103,7 @@ export interface ChatResponse {
   }>;
 }
 
-const RANIER_SYSTEM_PROMPT = `You are Ranier, Come Near's intelligent research assistant. You help analyze qualitative research data and provide insights.
+const RAINIER_SYSTEM_PROMPT = `You are Rainier, Come Near's intelligent research assistant. You help analyze qualitative research data and provide insights.
 
 Your core capabilities:
 - Deep analysis of interview transcripts, focus groups, and research documents
@@ -187,7 +187,7 @@ function truncateSources(
   return truncatedSources;
 }
 
-export async function askRanier(
+export async function askRainier(
   question: string,
   context: string,
   sources: Array<{ filename: string; content: string }>
@@ -209,7 +209,7 @@ export async function askRanier(
       messages: [
         {
           role: "system",
-          content: RANIER_SYSTEM_PROMPT,
+          content: RAINIER_SYSTEM_PROMPT,
         },
         {
           role: "user",
@@ -229,7 +229,7 @@ export async function askRanier(
     };
   } catch (error) {
     console.error("Error with Grok API:", error);
-    throw new Error("Failed to get response from Ranier AI");
+    throw new Error("Failed to get response from Rainier AI");
   }
 }
 

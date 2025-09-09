@@ -18,7 +18,7 @@ export default function Landing() {
               />
               <span className="text-xl font-semibold text-gray-900">Come Near</span>
               <div className="hidden sm:block w-px h-6 bg-gray-300"></div>
-              <span className="hidden sm:inline-block text-gray-600 font-medium">Ranier</span>
+              <span className="hidden sm:inline-block text-gray-600 font-medium">Rainier</span>
             </div>
             <Button 
               onClick={() => window.location.href = '/guest'}
@@ -47,7 +47,7 @@ export default function Landing() {
               onClick={() => window.location.href = '/guest'}
               className="bg-primary hover:bg-primary/90 text-lg px-8 py-3"
             >
-              Enter Ranier
+              Enter Rainier
             </Button>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function Landing() {
               </div>
               <CardTitle>Context-Aware Insights</CardTitle>
               <CardDescription>
-                Ranier understands your research context and provides bias-aware analysis with confidence scoring and transparent reasoning.
+                Rainier understands your research context and provides bias-aware analysis with confidence scoring and transparent reasoning.
               </CardDescription>
             </CardHeader>
           </Card>

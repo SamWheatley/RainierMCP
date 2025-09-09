@@ -1,6 +1,6 @@
 # Overview
 
-Ranier is Come Near's internal research intelligence platform that transforms qualitative research into actionable insights. The application serves as a transcript and interview analysis tool with plans to evolve into a full InsightStream-style research operating system. It provides AI-powered analysis capabilities for multiple internal teams (Research, Product, Marketing, Donor Relations) to extract meaningful patterns from research data.
+Rainier is Come Near's internal research intelligence platform that transforms qualitative research into actionable insights. The application serves as a transcript and interview analysis tool with plans to evolve into a full InsightStream-style research operating system. It provides AI-powered analysis capabilities for multiple internal teams (Research, Product, Marketing, Donor Relations) to extract meaningful patterns from research data.
 
 The platform features a modern chat-based interface for asking questions about uploaded documents, an exploration interface for browsing research files, and intelligent AI responses with source citations and confidence scoring.
 
@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 
 ## AI Integration
 - **Provider**: OpenAI GPT-4o for chat and analysis
-- **Personality System**: Custom "Ranier AI" with Come Near-specific prompts
+- **Personality System**: Custom "Rainier AI" with Come Near-specific prompts
 - **Response Format**: Structured JSON with content, sources, and confidence scores
 - **Document Processing**: Text extraction and semantic analysis capabilities
 
