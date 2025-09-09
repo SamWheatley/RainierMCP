@@ -20,7 +20,7 @@ export class OptimizedS3TranscriptService {
   private bucketName: string;
 
   constructor() {
-    this.bucketName = process.env.PARTNER_BUCKET || 'cn-rainier-data-lake';
+    this.bucketName = process.env.PARTNER_BUCKET || 'cn2025persona';
     this.s3 = new S3Client({
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID_RAINIER!,
@@ -32,7 +32,7 @@ export class OptimizedS3TranscriptService {
 
   async getCuratedTranscripts(): Promise<S3File[]> {
     try {
-      console.log('🔍 Fetching S3 transcript metadata...');
+      console.log(`🔍 Fetching S3 transcript metadata from bucket: ${this.bucketName}`);
       
       // List all transcript files (metadata only for fast loading)
       const listCommand = new ListObjectsV2Command({
@@ -40,10 +40,26 @@ export class OptimizedS3TranscriptService {
         Prefix: 'Transcripts/',
         MaxKeys: 1000
       });
+      
+      console.log(`📡 S3 Request: Bucket=${this.bucketName}, Prefix=Transcripts/`);
       const listResponse = await this.s3.send(listCommand);
+      console.log(`📥 S3 Response: ${JSON.stringify({ 
+        KeyCount: listResponse.KeyCount, 
+        IsTruncated: listResponse.IsTruncated,
+        ContentsLength: listResponse.Contents?.length 
+      })}`);
 
-      if (!listResponse.Contents) {
-        console.log('⚠️ No S3 contents found');
+      if (!listResponse.Contents || listResponse.Contents.length === 0) {
+        console.log('⚠️ No S3 contents found - trying different prefixes...');
+        
+        // Try without prefix to see what's actually in the bucket
+        const rootListCommand = new ListObjectsV2Command({
+          Bucket: this.bucketName,
+          MaxKeys: 10
+        });
+        const rootResponse = await this.s3.send(rootListCommand);
+        console.log(`🔍 Root bucket contents: ${rootResponse.Contents?.map(obj => obj.Key).join(', ') || 'empty'}`);
+        
         return [];
       }
 
