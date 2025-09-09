@@ -1668,7 +1668,7 @@ Focus on major themes like spiritual seeking, technology impact, community conne
               "Build relationships with fellow leaders",
               "Model faith for family and community"
             ]
-          ],
+          },
           painPoints: [
             "Lack of advanced learning opportunities",
             "Limited leadership roles available",
@@ -1747,7 +1747,7 @@ Focus on major themes like spiritual seeking, technology impact, community conne
               "Create community for children",
               "Share parenting experiences and wisdom"
             ]
-          ],
+          },
           painPoints: [
             "Balancing adult spiritual needs with children's needs",
             "Finding age-appropriate spiritual education",
