@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, AlertTriangle, Calendar, Download, BarChart3, Quote, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import QuoteDetailModal from "./QuoteDetailModal";
 
 interface TrendMetric {
   theme: string;
@@ -37,6 +38,8 @@ interface EarlyWarning {
 }
 
 export default function ReportsPage() {
+  const [selectedQuote, setSelectedQuote] = useState<PullQuote | null>(null);
+
   // Real API data queries
   const { data: trendData, isLoading: trendsLoading } = useQuery({
     queryKey: ['/api/trend-metrics'],
@@ -56,9 +59,9 @@ export default function ReportsPage() {
     gcTime: 10 * 60 * 1000,
   });
 
-  const trendMetrics: TrendMetric[] = trendData?.trends || [];
-  const pullQuotes: PullQuote[] = quotesData?.quotes || [];
-  const earlyWarnings: EarlyWarning[] = warningsData?.warnings || [];
+  const trendMetrics: TrendMetric[] = (trendData as any)?.trends || [];
+  const pullQuotes: PullQuote[] = (quotesData as any)?.quotes || [];
+  const earlyWarnings: EarlyWarning[] = (warningsData as any)?.warnings || [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -240,7 +243,12 @@ export default function ReportsPage() {
             </div>
           ) : (
             pullQuotes.map((quote, index) => (
-              <div key={index} className="border-l-4 border-indigo-500 pl-4 py-2">
+              <div 
+                key={index} 
+                className="border-l-4 border-indigo-500 pl-4 py-2 cursor-pointer hover:bg-gray-50 rounded-r-lg transition-colors duration-200"
+                onClick={() => setSelectedQuote(quote)}
+                data-testid={`quote-card-${index}`}
+              >
                 <blockquote className="text-gray-700 italic mb-2">
                   "{quote.text}"
                 </blockquote>
@@ -266,6 +274,9 @@ export default function ReportsPage() {
                 {quote.context && (
                   <p className="text-xs text-gray-500 mt-2">{quote.context}</p>
                 )}
+                <div className="text-xs text-indigo-600 mt-2 opacity-70 hover:opacity-100">
+                  Click to view full context →
+                </div>
               </div>
             ))
           )}
@@ -313,6 +324,15 @@ export default function ReportsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quote Detail Modal */}
+      {selectedQuote && (
+        <QuoteDetailModal
+          isOpen={!!selectedQuote}
+          onClose={() => setSelectedQuote(null)}
+          quote={selectedQuote}
+        />
+      )}
     </div>
   );
 }

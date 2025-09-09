@@ -1315,7 +1315,7 @@ RESPOND HELPFULLY AND CITE SPECIFIC TRANSCRIPT CONTENT TO SUPPORT YOUR ANALYSIS.
       const contentSamples: { filename: string; content: string; }[] = [];
       for (const transcript of sharedTranscripts.slice(0, 8)) { // Use first 8 for efficiency
         try {
-          const content = await s3Service.getFileContent(transcript.s3Key);
+          const content = await s3Service.getFileContent(transcript.metadata.s3Key!);
           contentSamples.push({
             filename: transcript.title,
             content: content.substring(0, 5000) // First 5k chars for trend analysis
@@ -1391,7 +1391,7 @@ Focus on major themes like spiritual seeking, technology impact, community conne
       const quoteContent: { filename: string; content: string; }[] = [];
       for (const transcript of sharedTranscripts.slice(0, 6)) { // Use 6 transcripts for quotes
         try {
-          const content = await s3Service.getFileContent(transcript.s3Key);
+          const content = await s3Service.getFileContent(transcript.metadata.s3Key!);
           quoteContent.push({
             filename: transcript.title,
             content: content.substring(0, 8000) // More content for quote extraction
@@ -1463,7 +1463,7 @@ Focus on quotes about spiritual seeking, technology impact, community connection
       const warningContent: { filename: string; content: string; }[] = [];
       for (const transcript of sharedTranscripts.slice(0, 5)) {
         try {
-          const content = await s3Service.getFileContent(transcript.s3Key);
+          const content = await s3Service.getFileContent(transcript.metadata.s3Key!);
           warningContent.push({
             filename: transcript.title,
             content: content.substring(0, 6000)
@@ -1514,6 +1514,78 @@ Look for: technology anxiety, community disconnection, economic concerns, health
       console.error("Error detecting early warnings:", error);
       res.status(500).json({ 
         error: "Failed to detect early warnings",
+        message: error.message 
+      });
+    }
+  });
+
+  // Quote context endpoint - provides full context around a specific quote
+  app.get('/api/quote-context', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const quoteText = req.query.text as string;
+      const sourceFile = req.query.sourceFile as string;
+      
+      if (!quoteText || !sourceFile) {
+        return res.status(400).json({ error: 'Quote text and source file are required' });
+      }
+      
+      console.log(`🔍 Loading full context for quote: "${quoteText.substring(0, 50)}..." from ${sourceFile}`);
+      
+      const s3Service = new OptimizedS3TranscriptService();
+      
+      // Get curated transcripts and find the matching file
+      const transcripts = await s3Service.getCuratedTranscripts();
+      const matchingTranscript = transcripts.find(file => 
+        file.title === sourceFile || file.title.includes(sourceFile) || sourceFile.includes(file.title)
+      );
+      
+      if (!matchingTranscript) {
+        console.log(`❌ Could not find matching transcript for: ${sourceFile}`);
+        return res.status(404).json({ error: 'Source file not found' });
+      }
+      
+      // Load the full transcript content
+      const fullContent = await s3Service.getFileContent(matchingTranscript.metadata.s3Key!);
+      console.log(`✅ Loaded ${fullContent.length} characters from ${matchingTranscript.title}`);
+      
+      // Use OpenAI to find the quote context
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+      
+      const contextPrompt = `Find the exact quote "${quoteText}" in this transcript and provide expanded context around it.
+
+Transcript content: ${fullContent}
+
+Return a JSON object with this structure:
+{
+  "found": true/false,
+  "contextBefore": "Conversation leading up to the quote",
+  "contextAfter": "Conversation following the quote", 
+  "fullContext": "Extended passage containing the quote",
+  "insights": ["Key insight 1", "Key insight 2"],
+  "speakerContext": "What we learn about this speaker from the broader context"
+}
+
+Provide at least 2-3 sentences before and after the quote. Focus on what led to this statement and how others responded.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: 'user', content: contextPrompt }],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 1500,
+        temperature: 0.2
+      });
+
+      const content = response.choices[0].message.content || '{"found": false}';
+      const contextData = JSON.parse(content);
+      
+      console.log(`✅ Generated context analysis for quote (found: ${contextData.found})`);
+      res.json(contextData);
+      
+    } catch (error: any) {
+      console.error("Error getting quote context:", error);
+      res.status(500).json({ 
+        error: "Failed to get quote context",
         message: error.message 
       });
     }
