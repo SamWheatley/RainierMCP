@@ -7,7 +7,7 @@ import ExploreGrid from "@/components/ExploreGrid";
 import type { UploadedFile } from "@shared/schema";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'ask' | 'explore' | 'insights'>('ask');
+  const [activeTab, setActiveTab] = useState<'ask' | 'explore' | 'insights'>('insights');
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [, setLocation] = useLocation();
 

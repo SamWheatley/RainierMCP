@@ -15,15 +15,15 @@ interface InsightsPanelProps {
 export default function InsightsPanel({ currentThreadId, onThreadSelect, onNewThread }: InsightsPanelProps) {
   return (
     <div className="max-w-6xl mx-auto">
-      <Tabs defaultValue="conversations" className="w-full">
+      <Tabs defaultValue="research-insights" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8">
-          <TabsTrigger value="conversations" className="flex items-center space-x-2">
-            <MessageSquare className="w-4 h-4" />
-            <span>Conversations</span>
-          </TabsTrigger>
           <TabsTrigger value="research-insights" className="flex items-center space-x-2">
             <Brain className="w-4 h-4" />
             <span>Research Insights</span>
+          </TabsTrigger>
+          <TabsTrigger value="conversations" className="flex items-center space-x-2">
+            <MessageSquare className="w-4 h-4" />
+            <span>Conversations</span>
           </TabsTrigger>
         </TabsList>
 
