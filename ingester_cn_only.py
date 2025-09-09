@@ -178,14 +178,27 @@ class CNIngester:
                 if e.response['Error']['Code'] != 'NoSuchKey':
                     raise
             
-            # Write curated file with tags
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=curated_key,
-                Body=normalized_bytes,
-                ContentType='text/plain; charset=utf-8',
-                Tagging='project=come-near&source=transcribe&schema_version=1'
-            )
+            # Write curated file with optional tags (graceful fallback)
+            try:
+                self.s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=curated_key,
+                    Body=normalized_bytes,
+                    ContentType='text/plain; charset=utf-8',
+                    Tagging='project=come-near&source=transcribe&schema_version=1'
+                )
+            except ClientError as e:
+                if e.response.get('Error', {}).get('Code') in {'AccessDenied', 'InvalidTag'}:
+                    print(f"⚠ Tagging denied for {curated_key}; proceeding without object tags")
+                    # Write without tags - rely on manifest-only tagging
+                    self.s3_client.put_object(
+                        Bucket=self.bucket_name,
+                        Key=curated_key,
+                        Body=normalized_bytes,
+                        ContentType='text/plain; charset=utf-8'
+                    )
+                else:
+                    raise
             
             print(f"✓ Curated file written: {curated_key}")
             return {
