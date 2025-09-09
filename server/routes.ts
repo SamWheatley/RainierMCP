@@ -1298,7 +1298,7 @@ RESPOND HELPFULLY AND CITE SPECIFIC TRANSCRIPT CONTENT TO SUPPORT YOUR ANALYSIS.
   // Predictive Intelligence API Endpoints for Reports
   
   // Trend metrics endpoint - analyzes theme prevalence changes over time
-  app.get('/api/trend-metrics', isAuthenticated, async (req: any, res) => {
+  app.get('/api/trend-metrics', async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       const s3Service = new OptimizedS3TranscriptService();
@@ -1375,7 +1375,7 @@ Focus on major themes like spiritual seeking, technology impact, community conne
   });
 
   // Pull quotes endpoint - extracts impactful participant quotes
-  app.get('/api/pull-quotes', isAuthenticated, async (req: any, res) => {
+  app.get('/api/pull-quotes', async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       const s3Service = new OptimizedS3TranscriptService();
@@ -1448,7 +1448,7 @@ Focus on quotes about spiritual seeking, technology impact, community connection
   });
 
   // Early warning system endpoint - detects emerging concerns
-  app.get('/api/early-warnings', isAuthenticated, async (req: any, res) => {
+  app.get('/api/early-warnings', async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       const s3Service = new OptimizedS3TranscriptService();
