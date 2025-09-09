@@ -240,7 +240,7 @@ I have access to all the source transcripts that informed this insight. What wou
                   </div>
                   <div className={`rounded-lg p-3 ${
                     message.role === 'user'
-                      ? 'bg-blue-600 text-white ml-4'
+                      ? 'bg-blue-500 text-white ml-4'
                       : 'bg-gray-100 text-gray-900 mr-4'
                   }`}>
                     <div className="prose prose-sm max-w-none">
