@@ -181,15 +181,11 @@ async function generateResearchInsights(
       return insights;
     }
 
-    // Theme Detection Analysis
-    const themePrompt = `
+    // Unified Comprehensive Analysis - Single API call for all insight types
+    const unifiedPrompt = `
 IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
 
-Analyze the following research data and identify key themes, patterns, and insights. Focus on:
-1. Recurring topics and concepts
-2. Common user behaviors or pain points  
-3. Emerging trends or patterns
-4. Important insights that Come Near should know
+Perform a comprehensive research analysis covering ALL four analysis types below. Analyze the research data thoroughly and provide insights across all categories.
 
 Research Data:
 ${fileContent}
@@ -198,165 +194,70 @@ ${conversationData}
 
 IMPORTANT: When listing sources, use EXACTLY the file names shown above (like "Atlanta_4-22_1PM_Segment 7" or "6. SEGMENT 7 - SPIRITUALITY v2").
 
-Return ONLY a JSON array of theme insights in this exact format:
-[{
-  "type": "theme",
-  "title": "Brief theme name",
-  "description": "Detailed description of the theme and its significance",
-  "confidence": 0.85,
-  "sources": ["exact file names from the research data above"]
-}]
+Analyze the data for:
+1. THEMES: Key recurring topics, user behaviors, trends, and insights Come Near should know
+2. BIASES: Sample limitations, leading questions, methodology issues, missing perspectives
+3. PATTERNS: Behavioral patterns, communication trends, decision processes, demographic patterns
+4. RECOMMENDATIONS: Actionable suggestions for product, UX, marketing, strategy, and research methods
 
-Limit to 3-5 most significant themes. If no themes found, return exactly: []`;
+Return ONLY a JSON object with four arrays in this exact format:
+{
+  "themes": [{
+    "type": "theme",
+    "title": "Brief theme name",
+    "description": "Detailed description of the theme and its significance",
+    "confidence": 0.85,
+    "sources": ["exact file names from the research data above"]
+  }],
+  "biases": [{
+    "type": "bias", 
+    "title": "Brief bias description",
+    "description": "Detailed analysis of the bias and its potential impact",
+    "confidence": 0.75,
+    "sources": ["exact file names from the research data above"]
+  }],
+  "patterns": [{
+    "type": "pattern",
+    "title": "Brief pattern description", 
+    "description": "Detailed analysis of the pattern and its implications",
+    "confidence": 0.80,
+    "sources": ["exact file names from the research data above"]
+  }],
+  "recommendations": [{
+    "type": "recommendation",
+    "title": "Brief recommendation title",
+    "description": "Detailed actionable recommendation with rationale", 
+    "confidence": 0.90,
+    "sources": ["exact file names from the research data above"]
+  }]
+}
 
-    const themeData = await makeAIRequest(themePrompt, 1500, 0.3);
-    const themeInsights = Array.isArray(themeData) ? themeData : (themeData.themes || themeData.insights || []);
+Provide 3-5 insights per category. If no insights found for a category, use an empty array [].`;
+
+    console.log('🔍 Running unified comprehensive analysis...');
+    const unifiedData = await makeAIRequest(unifiedPrompt, 5000, 0.3);
     
-    insights.push(...themeInsights.map((insight: any) => ({
-      ...insight,
-      userId,
-      sessionId: session.id,
-      sources: insight.sources ? insight.sources.map((source: string) => {
-        const fileData = fileMetadata[source];
-        if (fileData?.isS3 && fileData.s3Key) {
-          return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
-        }
-        return source;
-      }) : []
-    })));
-
-    // Add delay to avoid rate limits (Anthropic: 30K tokens/minute)
-    console.log('⏳ Waiting 20 seconds to avoid rate limit...');
-    await new Promise(resolve => setTimeout(resolve, 20000));
-
-    // Bias Detection Analysis
-    const biasPrompt = `
-IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
-
-Analyze the following research data for potential biases, leading questions, or methodological concerns:
-1. Leading or loaded questions
-2. Sample bias or demographic gaps
-3. Confirmation bias in question framing
-4. Missing perspectives or voices
-
-Research Data:
-${fileContent}
-
-Return ONLY a JSON array of bias-related insights in this exact format:
-[{
-  "type": "bias",
-  "title": "Brief bias concern",
-  "description": "Explanation of the bias and why it matters for Come Near's research quality",
-  "confidence": 0.75,
-  "sources": ["specific file names from the data above"]
-}]
-
-Look for subtle biases too - even minor concerns are valuable for improving research quality. If absolutely no biases found, return exactly: []`;
-
-    const biasData = await makeAIRequest(biasPrompt, 1000, 0.2);
-    const biasInsights = Array.isArray(biasData) ? biasData : (biasData.biases || biasData.insights || []);
+    // Parse unified response and add all insight types
+    const allInsightTypes = ['themes', 'biases', 'patterns', 'recommendations'];
     
-    insights.push(...biasInsights.map((insight: any) => ({
-      ...insight,
-      userId,
-      sessionId: session.id,
-      sources: insight.sources ? insight.sources.map((source: string) => {
-        const fileData = fileMetadata[source];
-        if (fileData?.isS3 && fileData.s3Key) {
-          return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
-        }
-        return source;
-      }) : []
-    })));
-
-    // Add delay to avoid rate limits
-    console.log('⏳ Waiting 20 seconds to avoid rate limit...');
-    await new Promise(resolve => setTimeout(resolve, 20000));
-
-    // Pattern Recognition Analysis
-    const patternPrompt = `
-IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
-
-Analyze the following research data to identify behavioral patterns, trends, and recurring structures:
-1. Communication patterns and interaction styles
-2. Decision-making patterns and preferences  
-3. Behavioral trends across participants
-4. Recurring problem-solving approaches
-5. Patterns in motivations and values
-
-Research Data:
-${fileContent}
-
-Return ONLY a JSON array of pattern insights in this exact format:
-[{
-  "type": "pattern",
-  "title": "Clear pattern name", 
-  "description": "Detailed explanation of the pattern and its significance for Come Near's work",
-  "confidence": 0.8,
-  "sources": ["specific file names from the data above"]
-}]
-
-Focus on 2-4 most significant patterns that could inform strategy. If no patterns found, return exactly: []`;
-
-    const patternData = await makeAIRequest(patternPrompt, 1200, 0.3);
-    const patternInsights = Array.isArray(patternData) ? patternData : (patternData.patterns || patternData.insights || []);
-    
-    insights.push(...patternInsights.map((insight: any) => ({
-      ...insight,
-      userId,
-      sessionId: session.id,
-      sources: insight.sources ? insight.sources.map((source: string) => {
-        const fileData = fileMetadata[source];
-        if (fileData?.isS3 && fileData.s3Key) {
-          return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
-        }
-        return source;
-      }) : []
-    })));
-
-    // Add delay to avoid rate limits
-    console.log('⏳ Waiting 20 seconds to avoid rate limit...');
-    await new Promise(resolve => setTimeout(resolve, 20000));
-
-    // Recommendation Generation
-    const recPrompt = `
-IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
-
-Based on the research analysis, provide actionable recommendations for Come Near's team:
-1. Research methodology improvements
-2. Product/service insights
-3. Strategic recommendations
-4. Next steps for further investigation
-
-Research Data Summary:
-${fileContent.substring(0, 2000)}...
-
-Return ONLY a JSON array of recommendations in this exact format:
-[{
-  "type": "recommendation",
-  "title": "Actionable recommendation",
-  "description": "Detailed explanation and implementation guidance",
-  "confidence": 0.80,
-  "sources": ["specific file names from the data above"]
-}]
-
-Focus on 2-4 highest-impact recommendations. If no recommendations found, return exactly: []`;
-
-    const recData = await makeAIRequest(recPrompt, 1200, 0.4);
-    const recommendations = Array.isArray(recData) ? recData : (recData.recommendations || recData.insights || []);
-    
-    insights.push(...recommendations.map((insight: any) => ({
-      ...insight,
-      userId,
-      sessionId: session.id,
-      sources: insight.sources ? insight.sources.map((source: string) => {
-        const fileData = fileMetadata[source];
-        if (fileData?.isS3 && fileData.s3Key) {
-          return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
-        }
-        return source;
-      }) : []
-    })));
+    for (const insightType of allInsightTypes) {
+      const categoryInsights = unifiedData[insightType] || [];
+      if (Array.isArray(categoryInsights)) {
+        insights.push(...categoryInsights.map((insight: any) => ({
+          ...insight,
+          userId,
+          sessionId: session.id,
+          sources: insight.sources ? insight.sources.map((source: string) => {
+            const fileData = fileMetadata[source];
+            if (fileData?.isS3 && fileData.s3Key) {
+              return `${source} (S3: Transcripts/${fileData.s3Key.split('/').pop()})`;
+            }
+            return source;
+          }) : []
+        })));
+        console.log(`✅ Added ${categoryInsights.length} ${insightType} insights`);
+      }
+    }
 
   } catch (error) {
     console.error("Error in AI analysis:", error);
