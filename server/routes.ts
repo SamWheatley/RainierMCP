@@ -117,8 +117,28 @@ async function generateResearchInsights(
       }
     };
     
-    // Prepare data for analysis
-    const fileContent = files.map(f => f.extractedText).filter(Boolean).join('\n\n');
+    // Prepare content for AI analysis (load S3 content on-demand)
+    const fileContents: string[] = [];
+    
+    for (const file of files) {
+      if ((file as any).isS3File && (file as any).s3Key) {
+        // Load S3 file content on-demand
+        try {
+          const s3Service = new (await import('./s3ServiceOptimized')).OptimizedS3TranscriptService();
+          const content = await s3Service.getFileContent((file as any).s3Key);
+          fileContents.push(`File: ${file.originalName}\n${content}`);
+          console.log(`✅ Loaded S3 content for ${file.originalName}, length: ${content.length}`);
+        } catch (error) {
+          console.error(`❌ Error loading S3 content for ${file.originalName}:`, error);
+          fileContents.push(`File: ${file.originalName}\n[Content unavailable]`);
+        }
+      } else if (file.extractedText) {
+        // Use existing extracted text for uploaded files
+        fileContents.push(`File: ${file.originalName}\n${file.extractedText}`);
+      }
+    }
+    
+    const fileContent = fileContents.join('\n\n');
     const conversationData = threads.map(t => `Thread: ${t.title}`).join('\n');
     
     if (!fileContent && !conversationData) {
@@ -146,7 +166,7 @@ Return ONLY a JSON array of theme insights in this exact format:
   "title": "Brief theme name",
   "description": "Detailed description of the theme and its significance",
   "confidence": 0.85,
-  "sources": ["relevant file or conversation names"]
+  "sources": ["specific file names from the data above"]
 }]
 
 Limit to 3-5 most significant themes. If no themes found, return exactly: []`;
@@ -180,7 +200,7 @@ Return ONLY a JSON array of bias-related insights in this exact format:
   "title": "Brief bias concern",
   "description": "Explanation of the bias and why it matters for Come Near's research quality",
   "confidence": 0.75,
-  "sources": ["specific examples or files"]
+  "sources": ["specific file names from the data above"]
 }]
 
 Look for subtle biases too - even minor concerns are valuable for improving research quality. If absolutely no biases found, return exactly: []`;
@@ -215,7 +235,7 @@ Return ONLY a JSON array of pattern insights in this exact format:
   "title": "Clear pattern name", 
   "description": "Detailed explanation of the pattern and its significance for Come Near's work",
   "confidence": 0.8,
-  "sources": ["specific data sources where pattern appears"]
+  "sources": ["specific file names from the data above"]
 }]
 
 Focus on 2-4 most significant patterns that could inform strategy. If no patterns found, return exactly: []`;
@@ -249,7 +269,7 @@ Return ONLY a JSON array of recommendations in this exact format:
   "title": "Actionable recommendation",
   "description": "Detailed explanation and implementation guidance",
   "confidence": 0.80,
-  "sources": ["supporting data sources"]
+  "sources": ["specific file names from the data above"]
 }]
 
 Focus on 2-4 highest-impact recommendations. If no recommendations found, return exactly: []`;
@@ -998,6 +1018,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user's files and conversations for analysis
       let files = await storage.getUploadedFilesByUser(userId);
       const threads = await storage.getChatThreadsByUser(userId);
+      
+      // ALSO get S3 transcript files for real data analysis
+      const { OptimizedS3TranscriptService } = await import('./s3ServiceOptimized');
+      const s3Service = new OptimizedS3TranscriptService();
+      const s3Files = await s3Service.getCuratedTranscripts();
+      
+      // Convert S3 files to the expected format and merge
+      const convertedS3Files = s3Files.map(s3File => ({
+        id: s3File.id,
+        originalName: s3File.title,
+        extractedText: '', // Will load on-demand
+        shared: s3File.shared || false,
+        isS3File: true,
+        s3Key: s3File.metadata.s3Key
+      }));
+      
+      // Combine uploaded files and S3 files
+      files = [...files, ...convertedS3Files];
       
       // Filter files based on dataset selection
       if (dataset === 'segment7') {
