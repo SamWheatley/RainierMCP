@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, AlertTriangle, Calendar, Download, BarChart3, Quote, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, TrendingDown, AlertTriangle, Calendar, Download, BarChart3, Quote, Loader2, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import QuoteDetailModal from "./QuoteDetailModal";
+import SubsegmentAnalysis from "./SubsegmentAnalysis";
 
 interface TrendMetric {
   theme: string;
@@ -39,6 +41,7 @@ interface EarlyWarning {
 
 export default function ReportsPage() {
   const [selectedQuote, setSelectedQuote] = useState<PullQuote | null>(null);
+  const [activeTab, setActiveTab] = useState("intelligence");
 
   // Real API data queries
   const { data: trendData, isLoading: trendsLoading } = useQuery({
@@ -69,13 +72,29 @@ export default function ReportsPage() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Research Intelligence Reports</h1>
-          <p className="text-lg text-gray-600 mt-2">Predictive analytics and trend analysis from qualitative research data</p>
+          <p className="text-lg text-gray-600 mt-2">Predictive analytics and in-depth analysis from qualitative research data</p>
         </div>
         <Button className="flex items-center space-x-2">
           <Download className="w-4 h-4" />
           <span>Download Current Report</span>
         </Button>
       </div>
+
+      {/* Report Type Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="intelligence" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Research Intelligence
+          </TabsTrigger>
+          <TabsTrigger value="subsegments" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Subsegment Analysis
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="intelligence">
+          <div className="space-y-8">
 
       {/* Predictive Intelligence Dashboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -324,6 +343,13 @@ export default function ReportsPage() {
           </div>
         </CardContent>
       </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="subsegments">
+          <SubsegmentAnalysis />
+        </TabsContent>
+      </Tabs>
 
       {/* Quote Detail Modal */}
       {selectedQuote && (
