@@ -1,0 +1,230 @@
+OK i need your help instructing ::sage:: how to prepare a report from the Come Near research data to identify Subsegments and Personas from the raw research data transcripts:
+subsegments vs personas
+Subsegments and personas are both tools for understanding a target audience, but they differ in purpose, scope, and level of detail. Subsegments are narrow, data-driven groups of existing customers, while personas are fictional, narrative-driven profiles that bring those customer types to life. 
+Comparison: Subsegments vs. Personas
+Feature 	Subsegments	Personas
+Primary Goal	To target and activate specific, measurable groups within your customer base.	To build empathy and communicate a clear vision of who you are designing or marketing for.
+Nature	A data-based, measurable, and functional grouping of actual customers.	A semi-fictional, human-like description of a representative customer.
+Origin	Created through quantitative analysis of hard data, such as demographics, behaviors, and purchase history.	Developed through qualitative research, including interviews and surveys, to uncover motivations and goals.
+Level of Detail	Broad groups defined by shared characteristics, like "high-value subscribers" or "first-time purchasers".	Highly detailed and specific descriptions that include motivations, pain points, daily lives, and personality traits.
+Best Used For	Tactical, data-driven decisions like targeted ad campaigns, marketing automation, or high-level analytics.	Strategic, creative decisions like crafting messaging, designing the user experience, or guiding product development.
+Example	"Customers in the Midwest who bought an item over $100 in the last 90 days."	"Financial-Planner Fiona," a 38-year-old working mother who values convenience and is motivated to simplify her household budgeting.
+How to use both effectively
+The most powerful approach is to use both methods together, with subsegments providing the foundation and personas adding the human element. 
+Subsegments first: Use quantitative data to identify the distinct subsegments that exist within your customer base. This ensures your efforts are grounded in real data and that you understand the size and value of each group.
+Personas next: Once you have identified your most important subsegments, create a representative persona for each. This qualitative step adds color and context, making the data more accessible and actionable for creative teams.
+Create targeted messaging: With both in hand, you can craft messaging that not only targets the right people (the subsegment) but also speaks directly to their emotional and psychological needs (the persona).
+Test and refine: Continuously monitor performance to see what resonates. A/B testing can show you which persona-based messages are most effective for each subsegment. 
+ChatGPT said:
+Thought for 26s
+
+Here’s a tight brief you can hand to ::sage:: to produce a Subsegments → Personas report from Come Near’s raw research transcripts. It assumes the Segment Seven corpus is the initial focus and uses our sidecar metadata + weighting (Raw/Internal/Agency).
+
+Brief for ::sage::
+
+Goal: From Come Near research data, identify data-driven subsegments within Segment Seven and then craft personas (one per priority subsegment) grounded in quotes, behaviors, and motivations.
+
+0) Inputs & guardrails
+
+Corpus: Raw interview/group transcripts (speaker-labeled, timestamped), plus internal summaries and agency decks (tagged in sidecar).
+
+Sidecar fields (required): title, doc_type ∈ {Raw, Internal, Agency}, owner, system_of_record_url, date, geo (if known), participant_id (if present).
+
+Weights (for analysis): Raw = 1.0, Internal = 0.6, Agency = 0.4. Use Raw-only for validation views.
+
+Privacy & permissions: Respect access levels. Quote attribution by participant_id only (no PII). Redact names/orgs.
+
+Bias checks: Flag segments dominated by summaries/decks; surface coverage stats and caution labels.
+
+1) Produce subsegments (quantitative first)
+
+Objective: Find natural groupings inside Segment Seven based on expressed needs, beliefs, behaviors—not just demographics.
+
+Steps
+
+Preprocess
+
+Normalize text, preserve speaker turns, keep timestamps.
+
+Extract attributes with NER/slotting: demographics (if present), life-stage cues, religious background cues, needs/pains, behaviors (channels, practices), sentiment/affect.
+
+Compute document + utterance embeddings (per participant and per salient quote).
+
+Feature set (for clustering)
+
+Concatenate: embeddings + sparse topic indicators + extracted attributes (binary/TF-IDF) + sentiment/affect scores.
+
+Apply source weighting (Raw 1.0 / Internal 0.6 / Agency 0.4) when aggregating features per participant.
+
+Cluster
+
+Run HDBSCAN (preferred) or K-Means with k-selection via silhouette/DBCV.
+
+Enforce minimum segment size threshold (e.g., ≥3–5 participants) to avoid spurious clusters.
+
+Output: subsegment_id, size, percent_of_sample, cohesion, separation.
+
+Label & validate
+
+Auto-label clusters using top n-grams, key attributes, and representative quotes.
+
+Compute coverage by source type (Raw/Internal/Agency), geo/time spread.
+
+Flag clusters with low Raw coverage or high variance as “provisional.”
+
+Deliverables (Subsegments)
+
+Subsegment Cards (one per cluster) with:
+
+Name (plain, descriptive), 2–3 line definition
+
+Size, % of corpus, cohesion/separation scores
+
+Distinguishing attributes (top 6–8), channels, blockers
+
+3–5 verbatim quotes (timestamped, participant_id)
+
+Source mix and bias flags
+
+Comparison Table: rows=subsegments, cols=attributes (✓/—/↑↓), plus size and confidence.
+
+Method appendix: clustering method, parameters, validation scores.
+
+Prompt to use (high-level)
+
+Identify natural subsegments in Segment Seven using participant-level features that combine embeddings, topics, and extracted attributes. Weight Raw transcripts 1.0, Internal 0.6, Agency 0.4. Use HDBSCAN, label clusters with plain-English names, and attach representative quotes (redacted). Compute cohesion/separation, size, and source coverage. Flag low-Raw or high-variance clusters as provisional.
+
+2) Elevate to personas (qualitative synthesis layered on subsegments)
+
+Objective: For the top priority subsegments (by size × distinctiveness × strategic relevance), craft human, narrative personas that creatives can use.
+
+Selection rule
+
+Persona Priority Score = normalized size × distinctiveness (feature separation) × strategic relevance (manual weight if provided).
+
+Choose top 3–5 to persona-ize.
+
+Persona template (per subsegment)
+
+Name & snapshot: age/life-stage sketch, context.
+
+Core motivations & values (from quotes; avoid invention).
+
+Jobs to be done (functional, emotional, social).
+
+Pain points & barriers (internal/external).
+
+Beliefs & faith history (as expressed; note uncertainty).
+
+Moments & triggers (when they’re most receptive).
+
+Channels & touchpoints (where they actually are).
+
+Messages that resonate / language to avoid (tie back to evidence).
+
+Quote collage (5–8 short verbatims with timestamps).
+
+Confidence & caveats: data coverage, recency, bias notes.
+
+Prompt to use
+
+For subsegment <ID/Name>, synthesize a persona. Use only grounded evidence from Raw transcripts (supplement with Internal/Agency where corroborated). Populate the template fields, keep voice neutral and precise, include a quote collage with timestamps, and add a confidence note with data coverage and recency.
+
+3) Report structure & artifacts
+
+Executive Summary: 1 page — number of subsegments, 3–5 key takeaways, quick implications.
+
+Subsegments Section: cards + comparison table + bias/coverage panel.
+
+Personas Section: 3–5 persona one-pagers (same template).
+
+Activation Notes: suggested CTAs, content angles, and measurement ideas per persona.
+
+Appendices: method, parameters, QA checks, glossary.
+
+Visuals
+
+Bubble chart (size vs distinctiveness) of subsegments.
+
+Heatmap of attributes × subsegments.
+
+Persona cards with quote ribbons.
+
+4) QA, ethics, and bias checks
+
+Raw-only view: Recompute insights on Raw-only; differences highlighted.
+
+Coverage thresholds: Each persona must have ≥70% of evidence from Raw or be marked “provisional.”
+
+Quote diversity: At least 3 distinct participants per persona; no single voice dominates.
+
+Recency check: Note if a subsegment relies on older interviews; add caveat.
+
+Faith-perspective spread: Flag if all inputs share a narrow background; note missing contrasts.
+
+Prompt to use
+
+Run QA: compare blended vs Raw-only outputs; measure quote diversity and recency; add bias notes wherever a subsegment/persona fails thresholds. Output a QA summary with pass/fail per check and recommended fixes.
+
+5) Tables & file outputs
+
+CSV / Parquet
+
+subsegments.csv: subsegment_id, name, size, pct, cohesion, separation, raw_share, internal_share, agency_share
+
+subsegment_attributes.csv: subsegment_id, attribute, direction(+, −), salience_score
+
+persona_cards.csv: persona_id, subsegment_id, field_name, content, confidence
+
+quotes.csv: persona_id/subsegment_id, participant_id, timestamp, quote, source_url
+
+Slides/Doc
+
+PDF deck with exec summary, subsegment cards, personas, activation notes.
+
+Links
+
+Sidecar-backed links for every cited quote (system_of_record_url).
+
+6) Inputs ::sage:: may request from Sam/Lori
+
+Confirm Segment Seven folder(s) and sidecar CSV location.
+
+Any must-include demographic fields or taboo topics to exclude.
+
+Strategic weighting (if any) for subsegment relevance (e.g., “Younger seekers” +20%).
+
+Preferred visual template (brand deck or Figma).
+
+7) Acceptance criteria (for Sam sign-off)
+
+≥3 validated subsegments with cohesion/separation scores and Raw coverage stats.
+
+3–5 personas (one per priority subsegment) with quotes, JTBD, messages, and confidence notes.
+
+Bias/coverage panel present; Raw-only comparison included.
+
+All quotes timestamped and link back via sidecar; no PII leaked.
+
+Report pack delivered (CSV tables + PDF deck).
+
+8) One-command “run” prompts (you can paste)
+
+End-to-end analysis
+
+Analyze Segment Seven transcripts to produce subsegments and personas as specified in the ::sage:: brief.
+Use sidecar weights Raw=1.0, Internal=0.6, Agency=0.4.
+Cluster with HDBSCAN, label clusters, generate Subsegment Cards and a comparison table.
+Select top subsegments by size × distinctiveness × strategic relevance and create personas using the template, grounding every claim in quotes.
+Include Raw-only validation, bias/coverage notes, and deliver CSVs + a PDF deck.
+
+
+Raw-only validation pass
+
+Recompute subsegments/personas using Raw-only data.
+Compare against blended outputs and list the differences that materially change insights or messaging.
+
+
+Quote extraction pack
+
+For each persona, extract 8–12 short, high-signal quotes (≤180 chars) with timestamps and sidecar links, grouped by motivation, pain, and trigger.
