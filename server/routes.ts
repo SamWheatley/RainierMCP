@@ -153,15 +153,15 @@ async function generateResearchInsights(
       }
     }
     
-    // Create manageable content chunks to avoid token limits
-    const maxContentLength = 180000; // Leave room for prompt text
+    // Create manageable content chunks to avoid rate limits (Anthropic: 30K tokens/min)
+    const maxContentLength = 60000; // Much smaller to avoid rate limits
     let currentLength = 0;
     const selectedFiles: typeof fileContents = [];
     
     for (const fileData of fileContents) {
       const fileText = `File: ${fileData.name}\n${fileData.content}\n\n`;
       if (currentLength + fileText.length > maxContentLength && selectedFiles.length > 0) {
-        console.log(`⚠️ Truncating analysis at ${selectedFiles.length} files to stay within token limit`);
+        console.log(`⚠️ Truncating analysis at ${selectedFiles.length} files to stay within rate limit`);
         break;
       }
       selectedFiles.push(fileData);
@@ -225,6 +225,10 @@ Limit to 3-5 most significant themes. If no themes found, return exactly: []`;
       }) : []
     })));
 
+    // Add delay to avoid rate limits (Anthropic: 30K tokens/minute)
+    console.log('⏳ Waiting 20 seconds to avoid rate limit...');
+    await new Promise(resolve => setTimeout(resolve, 20000));
+
     // Bias Detection Analysis
     const biasPrompt = `
 IMPORTANT: You must respond with ONLY valid JSON. No explanations, no markdown, no additional text.
@@ -264,6 +268,10 @@ Look for subtle biases too - even minor concerns are valuable for improving rese
         return source;
       }) : []
     })));
+
+    // Add delay to avoid rate limits
+    console.log('⏳ Waiting 20 seconds to avoid rate limit...');
+    await new Promise(resolve => setTimeout(resolve, 20000));
 
     // Pattern Recognition Analysis
     const patternPrompt = `
@@ -305,6 +313,10 @@ Focus on 2-4 most significant patterns that could inform strategy. If no pattern
         return source;
       }) : []
     })));
+
+    // Add delay to avoid rate limits
+    console.log('⏳ Waiting 20 seconds to avoid rate limit...');
+    await new Promise(resolve => setTimeout(resolve, 20000));
 
     // Recommendation Generation
     const recPrompt = `
