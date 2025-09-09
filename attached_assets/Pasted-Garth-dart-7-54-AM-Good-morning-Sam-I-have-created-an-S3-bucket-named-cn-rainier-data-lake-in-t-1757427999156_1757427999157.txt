@@ -1,0 +1,288 @@
+Garth
+:dart:  7:54 AM
+Good morning, Sam! I have created an S3 bucket named cn-rainier-data-lake in the us-east-1 region. The following link will give you access to copy the access key pair to programmatically read/write objects in that bucket. I will let you know when the transcriptions are done and uploaded. Otherwise, we can start working with Lori to define an organizational strategy for all the information we want to include in this POC.
+I'd recommend setting up a profile on your AWS CLI to be able to test any commands directly (i.e., aws configure --profile rainier using these credentials). Once that is in place, you can verify your ability to read the bucket:
+$ aws s3api list-objects --profile rainier --bucket cn-rainier-data-lake
+1Password Link
+1Password1Password
+I’m sharing an item with you using 1Password
+A password manager, digital vault, form filler and secure digital wallet. 1Password remembers all your passwords for you to help keep account information safe. (168 kB)
+https://share.1password.com/s#I7bBjHAyL5gGU5vn1BtmVC271swaK5EbTHW7nx_vVhs
+
+
+
+Sam
+  8:25 AM
+Thanks Garth! Looking forward to connecting all the parts next week :slightly_smiling_face:
+:raised_hands:
+1
+
+
+
+Garth
+:dart:  8:37 AM
+Also, just FYI, when I start uploading all the transcriptions, there will be two files for each video I was provided. One will be a JSON (large payload) that is the raw output from AWS Transcribe with a lot more data. The TXT (smaller payload) will be the readable minutes version of the transcript. I want to provide both so you are able to determine which is more useful.
+
+
+Sam
+  8:38 AM
+Yes that's great - having both is valuable.
+:white_check_mark:
+1
+
+
+
+Garth
+:dart:  8:39 AM
+The readable minutes version is my attempt at interpreting the JSON payload back into something the team can validate for accuracy :wink: - so, the JSON contains everything from the minutes and more.
+:white_check_mark:
+1
+
+
+
+Garth
+:dart:  1:01 PM
+FYI, I'm hoping to solve the entire Okta thing with a drop-in NGINX auth layer in front of the app on Lightsail. If things work as expected, I may be able to run general Come Near Okta gating before hitting the reverse proxy and sending any traffic to the app itself. I know this will be limiting for the longer-term, but I am trying to figure out the lowest bar to entry for this first pass.
+
+
+Sam
+  2:08 PM
+Sounds great. Let’s keep it simple!
+:100:
+1
+
+
+
+Sam
+  12:18 PM
+@Garth the 1Password link expired, can you resend please? Thanks!
+
+
+Sam
+  12:37 PM
+Also...
+Subject: Glue + Athena setup on cn-rainier-data-lake for manifest analytics
+Hey Garth,
+Per the POC constraints, we’ll operate entirely inside cn-rainier-data-lake (us-east-1) and keep a lightweight manifest layer for ops/audit. Can you wire up the following so we can run SQL over manifests without moving data?
+1) Glue Data Catalog
+Database: cn_rainier_lake
+Table: manifests_v1 over s3://cn-rainier-data-lake/manifests/
+Format: JSON (no compression for now)
+Partitioning: Hive-style by day → manifests/dt=YYYY-MM-DD/… (lets Athena prune scans)
+Serde: org.openx.data.jsonserde.JsonSerDe
+DDL (explicit, if you prefer over a crawler):
+
+CREATE DATABASE IF NOT EXISTS cn_rainier_lake;
+
+CREATE EXTERNAL TABLE IF NOT EXISTS cn_rainier_lake.manifests_v1 (
+  schema_version int,
+  batch_id string,
+  dt string,
+  source_bucket string,
+  source_prefix string,
+  ingester struct<name:string,version:string>,
+  entries array<
+    struct<
+      key:string,
+      type:string,
+      size_bytes:bigint,
+      checksum:string,
+      content_type:string,
+      pii:string,
+      status:string,
+      curated_key:string,
+      curated_checksum:string
+    >
+  >
+)
+PARTITIONED BY (pdt string)  -- duplicate of dt for partition column; value = YYYY-MM-DD
+ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
+LOCATION 's3://cn-rainier-data-lake/manifests/';
+We’ll write manifests under manifests/dt=YYYY-MM-DD/…; happy to align on pdt vs. dt as the partition key—using a dedicated pdt avoids serde edge cases.
+If you prefer a Glue Crawler, point it at manifests/, add a JSON classifier, set “Add new partitions only”, and bind it to cn_rainier_lake.
+2) Athena
+Workgroup: rainier_ops
+Result location: s3://cn-rainier-data-lake/system/athena-results/
+Encryption: SSE-S3 (or KMS if you already have one; e.g., alias/rainier-analytics)
+Enforce workgroup configuration (prevent ad-hoc result paths)
+Optional: send query metrics/logs to CloudWatch Logs
+Engine: Latest stable (engine v3 is fine)
+3) IAM (least privilege for query)
+Attach to the rainier principal we’re using, or spin a role we can assume:
+S3: ListBucket on cn-rainier-data-lake with prefix conditions for manifests/ and system/athena-results/; GetObject on those prefixes.
+Glue: GetDatabase, GetTables, GetTable, GetPartitions.
+Athena: StartQueryExecution, GetQueryExecution, GetQueryResults, ListQueryExecutions.
+If results are KMS-encrypted: add kms:Decrypt limited to the results key.
+4) Sanity queries (what we’ll run)
+
+-- latest batches
+SELECT dt, count(*) AS files
+FROM cn_rainier_lake.manifests_v1
+CROSS JOIN UNNEST(entries) AS t(e)
+WHERE pdt >= date_format(current_date - interval '7' day, '%Y-%m-%d')
+GROUP BY dt ORDER BY dt DESC;
+
+-- minutes missing curated
+SELECT e.key
+FROM cn_rainier_lake.manifests_v1
+CROSS JOIN UNNEST(entries) AS t(e)
+WHERE e.type='minutes_txt' AND (e.curated_key IS NULL OR e.curated_key='')
+ORDER BY e.key;
+5) Paths we’ll write (for your awareness)
+
+s3://cn-rainier-data-lake/uploads/...           # your Transcribe JSON + minutes TXT
+s3://cn-rainier-data-lake/curated/...           # normalized minutes (*.norm.txt)
+s3://cn-rainier-data-lake/manifests/dt=YYYY-MM-DD/ingest-<ts>.json
+s3://cn-rainier-data-lake/system/athena-results/  # Athena WG results
+If this looks good, flip it on and I’ll confirm by (1) writing the first manifest, (2) adding today’s partition (ALTER TABLE … ADD PARTITION if needed), and (3) running the two queries above in rainier_ops.
+Thanks!
+
+
+Garth
+:dart:  12:42 PM
+Here's the new 1Password link. I will take a look at the other request. This is new to me, so I'll take a look at what it's requesting.
+https://share.1password.com/s#OpxImHW8kAHabD8kcGmTOtn8oId7FA5-4E-URXVtFRs
+1Password1Password
+I’m sharing an item with you using 1Password
+A password manager, digital vault, form filler and secure digital wallet. 1Password remembers all your passwords for you to help keep account information safe. (168 kB)
+https://share.1password.com/s#OpxImHW8kAHabD8kcGmTOtn8oId7FA5-4E-URXVtFRs
+
+
+1 reply
+22 hours agoView thread
+
+
+Garth
+:dart:  12:43 PM
+I'm not entirely sure what I need to do regarding Glue. I haven't done anything with that before. Is this another AWS service I need to set up?
+
+
+Sam
+  12:49 PM
+Yes it's an AWS service. I would do this normally by creating a mirror but that violates the data policy that Carson sent over for me to sign.
+
+
+Garth
+:dart:  12:56 PM
+Ok. I will add it to my list, thanks
+
+
+Sam
+  12:58 PM
+Thank you
+
+
+Garth
+:dart:  7:48 AM
+Hey, Sam, just connecting the dots here. I noticed that the Glue instructions are referencing the old bucket. Is there data that was put in that bucket I should move to the one I referenced here? Note that the bucket name changed at this point, but the permissions were shared across accounts to avoid any access disruption. I'm looking at Glue this morning and wanting to be sure I have everything needed to get you up and running.
+
+
+
+Garth
+Good morning, team! (FYI, @Lori and @Sam)
+I have uploaded the completed transcripts to the S3 bucket for your ingestion (see the snippet attached for the full list). As mentioned, there is a TXT and JSON file for each: the txt file is the "minutes" style, and the json is the full AWS Transcribe output with vastly more rich data.
+PLEASE NOTE: the s3 bucket name has changed to cn2025persona, but I have granted your service account permissions, so you will not need to change any connection information. Assuming you have configured the aws cli with a profile of rainier using the provided credentials, you can see all the files available with the following command:
+$ aws s3 ls s3://cn2025persona --prof…
+Show more
+Transcript List
+ 
+
+Transcript List
+Plain Text
+Posted in cn-parallax | Sep 3rd | View message
+
+
+Garth
+:dart:  8:08 AM
+I believe I have the table set up, but please doublecheck me on this. I am going to work on configuring the workgroup in Athena now.
+2 files
+ 
+image.png
+image.png
+
+
+Sam
+  8:10 AM
+Thanks Man! You ROCK.
+
+
+Sam
+  8:36 AM
+Successfully processed all 46 real transcript pairs!
+DATA PROCESSING COMPLETE
+:white_check_mark: 46 transcript pairs discovered and processed
+:white_check_mark: 92 manifest entries (JSON + TXT files)
+:white_check_mark: Graceful tagging fallback working perfectly
+:white_check_mark: All curated files written to curated/ folder
+:white_check_mark: Complete audit manifest with full lineage tracking
+:white_check_mark: Perfect idempotence - system handled all edge cases
+8:37
+:sparkles: RANIER IS LIVE WITH REAL COME NEAR DATA :sparkles:
+Perfect verification results:
+:file_folder: 46 curated files processed and normalized
+:bar_chart: 1 complete audit manifest with full lineage
+:page_facing_up: Real research data like "SEGMENT 7 - PAST", "SPIRITUALITY", "Atlanta Group", "Portland Group"
+:white_check_mark: S3 data lake fully integrated and operational
+
+
+Garth
+:dart:  8:56 AM
+Wahoo! Can't believe that worked the first time! I just set up the assume role policy and tested it as well. You may have to help me debug the Athena side as you're getting things together.
+Successfully assumed the role
+❯ aws sts assume-role --role-arn "arn:aws:iam::681414095549:role/cn-rainier-role" --role-session-name "rainier-session" --profile rainier
+Note the ARN for the new role with all the permissions attached is above.
+Successfully ran some commands using the assumed role
+❯ aws s3 ls s3://cn2025persona --profile rainier-assumed --recursive                  ─╯
+2025-06-24 10:34:07          0 Focus Group Transcripts/
+2025-06-24 10:34:15          0 Participant Prework/
+2025-06-24 15:59:12          0 Participant Prework/Atlanta Group 1/
+2025-06-24 15:59:18    3229719 Participant Prework/Atlanta Group 1/Aida E.pdf
+2025-06-24 15:59:31    6782601 Participant Prework/Atlanta Group 1/Arthur D.pdf
+2025-06-24 15:59:21    1334783 Participant Prework/Atlanta Group 1/Brian B.pdf
+...
+In my case, I just set up my profile for rainier-assumed to auto handle the role from my rainier profile.
+
+
+Sam
+  8:58 AM
+Great! I'll let you know when I get this completed.
+
+
+Garth
+:dart:  8:59 AM
+Perfect. Thanks for your patience! When you get to it, feel free to update the #cn-parallax channel with milestones like this. I know Ryan and Lori would love to hear when the invisible hurdles are being cleared :wink:
+
+
+Sam
+  9:02 AM
+I'm waiting until I get the UI fixed and working - the files are accessible but I've got a bit of a Typescript problem right now.
+New
+
+
+Garth
+:dart:  9:04 AM
+Oh, TypeScript... I have a love/hate relationship with it. I use it religiously, but there are moments...
+:rolling_on_the_floor_laughing:
+1
+
+
+
+
+
+
+
+
+
+
+
+
+Message Garth:dart:Focus time (via Reclaim.ai)
+
+
+
+
+
+
+
+
+
