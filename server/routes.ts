@@ -1103,6 +1103,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Insight-focused chat endpoint for exploring specific research insights
+  app.post('/api/insight-chat', guestModeMiddleware, async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const schema = z.object({
+        insightId: z.string(),
+        message: z.string(),
+        context: z.object({
+          insightTitle: z.string(),
+          insightType: z.string(),
+          insightDescription: z.string(),
+          sources: z.array(z.string())
+        })
+      });
+
+      const { insightId, message, context } = schema.parse(req.body);
+
+      // Load relevant S3 files based on insight sources
+      const s3Service = await import('./s3ServiceOptimized');
+      const s3Files = await s3Service.getS3TranscriptFiles();
+      
+      // Filter S3 files that match the insight sources
+      const relevantFiles = s3Files.filter(file => 
+        context.sources.some(source => 
+          source.includes(file.name) || file.name.includes(source)
+        )
+      );
+
+      console.log(`🎯 Insight Chat: Loading ${relevantFiles.length} relevant files for insight "${context.insightTitle}"`);
+
+      // Load content for relevant files only (more focused than full analysis)
+      let combinedContent = '';
+      const sourceFileNames: string[] = [];
+      
+      for (const file of relevantFiles.slice(0, 8)) { // Limit to 8 most relevant files
+        try {
+          const fileContent = await s3Service.loadS3FileContent(file.s3Key);
+          if (fileContent && fileContent.length > 100) {
+            combinedContent += `\n\n=== SOURCE: ${file.name} ===\n${fileContent.substring(0, 15000)}\n`; // 15k chars per file
+            sourceFileNames.push(file.name);
+            console.log(`✅ Loaded content from ${file.name}, length: ${fileContent.length}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to load ${file.name}:`, error);
+        }
+      }
+
+      if (!combinedContent.trim()) {
+        return res.status(404).json({
+          content: "I apologize, but I couldn't load the source files for this insight. The files may not be available at this time.",
+          sources: []
+        });
+      }
+
+      // Create focused AI prompt for insight exploration
+      const focusedPrompt = `You are Ranier AI, Come Near's research intelligence assistant. You're helping explore a specific research insight in depth.
+
+INSIGHT CONTEXT:
+- Title: "${context.insightTitle}"
+- Type: ${context.insightType} 
+- Description: "${context.insightDescription}"
+
+USER QUESTION: "${message}"
+
+TRANSCRIPT DATA FROM SOURCE FILES:
+${combinedContent}
+
+INSTRUCTIONS:
+- Focus specifically on this ${context.insightType} insight about "${context.insightTitle}"
+- When providing quotes, include the exact source file name in your response
+- Be specific and cite particular participants or moments when possible
+- If asked for quotes, provide verbatim excerpts with clear attribution
+- Maintain a helpful, analytical tone appropriate for research professionals
+- If the user asks about patterns, themes, or recommendations, relate back to the specific insight context
+- Source files available: ${sourceFileNames.join(', ')}
+
+Please provide a helpful, focused response that explores this insight in depth.`;
+
+      // Use OpenAI for consistent performance (same as main insights)
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: 'user', content: focusedPrompt }],
+        max_completion_tokens: 1000,
+        temperature: 0.3
+      });
+
+      const aiResponse = response.choices[0].message.content || "I apologize, but I couldn't generate a response at this time.";
+
+      console.log(`🤖 Generated insight chat response for "${context.insightTitle}" (${aiResponse.length} chars)`);
+
+      res.json({
+        content: aiResponse,
+        sources: sourceFileNames,
+        insightContext: context
+      });
+
+    } catch (error: any) {
+      console.error("Error in insight chat:", error);
+      res.status(500).json({ 
+        content: "I apologize, but I encountered an error while processing your question. Please try again.",
+        sources: [],
+        error: error.message 
+      });
+    }
+  });
+
   // S3 Data Lake Ingestion Admin Endpoint
   app.post('/admin/ingest', guestModeMiddleware, async (req: any, res) => {
     try {
