@@ -1400,13 +1400,10 @@ Focus on major themes like spiritual seeking, technology impact, community conne
       const s3Service = new OptimizedS3TranscriptService();
       const allTranscripts = await s3Service.getCuratedTranscripts();
       
-      // Filter to Segment 7 files (as specified in the brief)
-      const segment7Files = allTranscripts.filter(transcript => 
-        transcript.title.toLowerCase().includes('segment 7') ||
-        transcript.title.toLowerCase().includes('segment seven')
-      );
+      // All S3 transcript files are Segment 7 data
+      const segment7Files = allTranscripts;
 
-      console.log(`🎯 Found ${segment7Files.length} Segment 7 files for subsegment analysis`);
+      console.log(`🎯 Using all ${segment7Files.length} Segment 7 files for subsegment analysis`);
 
       if (segment7Files.length === 0) {
         return res.json({
