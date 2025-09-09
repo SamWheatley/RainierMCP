@@ -97,10 +97,10 @@ async function generateResearchInsights(
           return [];
         }
       } else {
-        // Default to OpenAI
+        // Default to OpenAI GPT-5 (latest model released August 2025)
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
         const response = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
           messages: [{ role: 'user', content: prompt }],
           response_format: { type: "json_object" },
           max_tokens: maxTokens,
@@ -235,7 +235,32 @@ Return ONLY a JSON object with four arrays in this exact format:
 Provide 3-5 insights per category. If no insights found for a category, use an empty array [].`;
 
     console.log('🔍 Running unified comprehensive analysis...');
-    const unifiedData = await makeAIRequest(unifiedPrompt, 5000, 0.3);
+    // Force OpenAI to avoid Anthropic rate limits
+    const originalModel = model;
+    const analysisModel = model === 'anthropic' ? 'openai' : model;
+    console.log(`Using ${analysisModel} model for analysis (avoiding rate limits)`);
+    
+    // Temporarily override model for this analysis
+    const makeAnalysisAIRequest = async (prompt: string, maxTokens: number = 5000, temperature: number = 0.3) => {
+      if (analysisModel === 'grok') {
+        const { generateResearchInsights: grokGenerate } = await import('./grok');
+        return await grokGenerate(prompt);
+      } else {
+        // Use OpenAI GPT-5 (highest rate limits, latest model)
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+        const response = await openai.chat.completions.create({
+          model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: "json_object" },
+          max_tokens: maxTokens,
+          temperature
+        });
+        const content = response.choices[0].message.content || '[]';
+        return JSON.parse(content);
+      }
+    };
+    
+    const unifiedData = await makeAnalysisAIRequest(unifiedPrompt, 5000, 0.3);
     
     // Parse unified response and add all insight types
     const allInsightTypes = ['themes', 'biases', 'patterns', 'recommendations'];
