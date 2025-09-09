@@ -73,18 +73,25 @@ I have access to all the source transcripts that informed this insight. What wou
     mutationFn: async (message: string) => {
       setIsLoading(true);
       
-      const response = await apiRequest('POST', '/api/insight-chat', {
-        insightId: insight?.id,
-        message,
-        context: {
-          insightTitle: insight?.title,
-          insightType: insight?.type,
-          insightDescription: insight?.description,
-          sources: insight?.sources || []
-        }
-      });
-      
-      return response;
+      try {
+        const response = await apiRequest('POST', '/api/insight-chat', {
+          insightId: insight?.id,
+          message,
+          context: {
+            insightTitle: insight?.title,
+            insightType: insight?.type,
+            insightDescription: insight?.description,
+            sources: insight?.sources || []
+          }
+        });
+        
+        const jsonResponse = await response.json();
+        console.log("🔧 Parsed API response:", jsonResponse);
+        return jsonResponse;
+      } catch (error) {
+        console.error("🚨 API request failed:", error);
+        throw error;
+      }
     },
     onSuccess: (response: any) => {
       console.log("🎯 Insight chat response received:", response);
@@ -233,8 +240,8 @@ I have access to all the source transcripts that informed this insight. What wou
                   </div>
                   <div className={`rounded-lg p-3 ${
                     message.role === 'user'
-                      ? 'bg-primary text-primary-foreground ml-4'
-                      : 'bg-secondary text-secondary-foreground mr-4'
+                      ? 'bg-blue-600 text-white ml-4'
+                      : 'bg-gray-100 text-gray-900 mr-4'
                   }`}>
                     <div className="prose prose-sm max-w-none">
                       {/* Simple markdown-like formatting */}
