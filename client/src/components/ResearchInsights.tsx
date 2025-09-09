@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefreshCw, TrendingUp, AlertTriangle, Users, FileText, Brain, Lightbulb, MoreVertical, Edit2, Trash2, CheckCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import InsightChatModal from "@/components/InsightChatModal";
 
 interface ResearchInsight {
   id: string;
@@ -569,6 +570,13 @@ export default function ResearchInsights() {
           ))}
         </Tabs>
       )}
+
+      {/* Insight Chat Modal */}
+      <InsightChatModal
+        insight={selectedInsight}
+        isOpen={isInsightChatOpen}
+        onClose={handleCloseInsightChat}
+      />
     </div>
   );
 }
