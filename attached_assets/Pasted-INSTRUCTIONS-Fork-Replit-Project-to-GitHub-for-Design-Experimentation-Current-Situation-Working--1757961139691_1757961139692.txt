@@ -1,0 +1,63 @@
+INSTRUCTIONS: Fork Replit Project to GitHub for Design Experimentation
+
+Current Situation:
+
+Working Rainier research intelligence platform in Replit
+Connected to GitHub repo: https://github.com/SamWheatley/RainierMCP
+Need to create a copy for major design changes while preserving current stable version
+
+Here are the new Figma specs for the project. Please call this new app RainierNeighbor
+https://www.figma.com/design/g3Btf8mWFTGyVjXAa7KY3v/Rainier-POC?node-id=20-11&t=ICNTAKqi2SwlnAuY-1
+
+Step 1: Push Current Stable Version to GitHub
+
+Open the Git pane from Tools section in current Replit project
+Stage all modified files (click the "+" next to files or use "Stage All")
+Add commit message: "Complete Rainier v1 - stable version with full features"
+Click "Commit"
+Click "Push" to send code to GitHub repository
+Verify push was successful (should see confirmation)
+Step 2: Create New Replit Project for Design Experiments
+
+Go to replit.com dashboard (new tab)
+Click "Create Repl" button
+Select "Import from GitHub"
+Enter repository URL: https://github.com/SamWheatley/RainierMCP
+Name the new project: RainierMCP-Design-v2
+Click "Import"
+Wait for import to complete and dependencies to install
+Step 3: Verify Setup
+
+Confirm new project runs properly (npm run dev workflow)
+Test basic functionality (login, navigation, reports)
+You now have two separate projects:
+Original: Stable version for reference
+New: Experimental version for design changes
+Result: You can now make major design changes in the new project while keeping the original safe as a fallback.
+
+1 minute ago
+I understand you want to fork your existing Replit project to GitHub and then create a new version for design experimentation based on new Figma specs. However, I need to clarify something important about my role and capabilities.
+
+I'm a Software Engineering Project Manager focused on planning and coordinating new software development projects. I don't have the ability to directly interact with your existing Replit projects, access GitHub repositories, or perform the Git operations you've outlined.
+
+Let me fetch the Figma design specs you provided to understand what you're trying to build for the new "RainierNeighbor" version:
+
+
+Visited https://www.figma.com/design/g3Btf8mWFTGyVjXAa7KY3v/Rainier-POC?node-id=20-11
+I wasn't able to access the Figma design specs directly. Let me search for information about your Rainier research intelligence platform to better understand what you're working with:
+
+
+Searched the web for "Rainier research intelligence platform features"
+Based on my search, it appears the "Rainier" you're referring to might be a custom research intelligence platform rather than a widely known product. Without access to your specific Figma designs and current codebase, I can help you create a plan for building "RainierNeighbor" as a new application.
+
+However, I need more details about what you want to build. Could you provide:
+
+What type of research intelligence platform is Rainier? (academic research, market research, scientific data analysis, etc.)
+
+Key features of your current platform that should be carried over or redesigned
+
+Main differences you want in RainierNeighbor based on the new Figma specs (since I couldn't access the designs directly)
+
+Technology stack you're currently using (React, Python, database, etc.)
+
+Once I understand these details, I can create a comprehensive plan for building RainierNeighbor with the new design specifications while helping you maintain the separation between your stable version and experimental version.
